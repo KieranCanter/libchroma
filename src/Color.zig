@@ -8,7 +8,17 @@ const LinearRgb = @import("color-spaces/LinearRgb.zig").LinearRgb;
 const Srgb = @import("color-spaces/Srgb.zig").Srgb;
 const Xyz = @import("color-spaces/Xyz.zig").Xyz;
 
-pub const ColorValue = union(enum) {
+pub const ColorSpace = enum {
+    cmyk,
+    hex,
+    hsl,
+    hsv,
+    linearRgb,
+    srgb,
+    xyz,
+};
+
+pub const ColorValue = union(ColorSpace) {
     cmyk: Cmyk,
     hex: Hex,
     hsl: Hsl,

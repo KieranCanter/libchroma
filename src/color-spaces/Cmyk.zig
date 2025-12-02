@@ -1,4 +1,4 @@
-const Canonical = @import("../Color.zig").Canonical;
+const Xyz = @import("Xyz.zig").Xyz;
 
 pub const Cmyk = struct {
     c: f64,
@@ -6,11 +6,11 @@ pub const Cmyk = struct {
     y: f64,
     k: f64,
 
-    pub fn toCanonical(self: Cmyk) Canonical {
-        @compileLog("TODO: Implement `toCanonical() for Cmyk");
+    pub fn toXyz(self: Cmyk) Xyz {
+        @compileLog("TODO: Implement `toXyz() for Cmyk");
     }
 
-    pub fn fromCanonical(canon: Canonical) Cmyk {
-        @compileLog("TODO: Implement `fromCanonical() for Cmyk");
+    pub fn fromXyz(xyz: Xyz) Cmyk {
+        @compileLog("TODO: Implement `fromXyz() for Cmyk");
     }
 };
