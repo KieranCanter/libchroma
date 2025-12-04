@@ -16,7 +16,7 @@ pub const Hwb = struct {
         return self.toSrgb().toXyz();
     }
 
-    // Formula for HWB -> sRGB:
+    // Formula for HWB -> sRGB conversion:
     // https://alvyray.com/Papers/CG/HWB_JGTv208.pdf
     pub fn toSrgb(self: Hwb) Srgb {
         if (self.h == null) {
@@ -46,7 +46,7 @@ pub const Hwb = struct {
         };
     }
 
-    // Formula for HWB -> HSV:
+    // Formula for HWB -> HSV conversion:
     // https://en.wikipedia.org/wiki/HWB_color_model
     pub fn toHsv(self: Hwb) Hsv {
         const s = 1 - (self.w / (1 - self.b));

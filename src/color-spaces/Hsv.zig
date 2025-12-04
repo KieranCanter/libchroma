@@ -62,7 +62,7 @@ pub const Hsv = struct {
         };
     }
 
-    // Formula for HSV -> HWB:
+    // Formula for HSV -> HWB conversion:
     // https://en.wikipedia.org/wiki/HWB_color_model
     pub fn toHwb(self: Hsv) Hwb {
         const w = (1 - self.s) * self.v;

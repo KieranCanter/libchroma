@@ -17,7 +17,7 @@ pub const Cmyk = struct {
         return self.toSrgb().toXyz();
     }
 
-    // Formula for CMYK -> sRGB:
+    // Formula for CMYK -> sRGB conversion:
     // https://www.101computing.net/cmyk-to-rgb-conversion-algorithm/
     pub fn toSrgb(self: Cmyk) Srgb {
         const r = (1 - self.c) * (1 - self.k);
