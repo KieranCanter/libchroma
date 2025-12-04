@@ -10,7 +10,7 @@ const Hwb = @import("Hwb.zig").Hwb;
 const Xyz = @import("Xyz.zig").Xyz;
 const Yxy = @import("Yxy.zig").Yxy;
 
-// Matrices for various RGB <-> XYZ conversions with linearized RGB values:
+// Matrix for linearizing sRGB during sRGB-> XYZ conversion:
 // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 const SRGB_TO_XYZ: [3][3]f32 = .{
     .{ 0.4124564, 0.3575761, 0.1804375 },
@@ -251,5 +251,4 @@ pub const Srgb = struct {
     pub fn toYxy(self: Srgb) Yxy {
         return self.toXyz().toYxy();
     }
-
 };

@@ -8,8 +8,6 @@ const Hsv = @import("color-spaces/Hsv.zig").Hsv;
 const Hwb = @import("color-spaces/Hwb.zig").Hwb;
 const Srgb = @import("color-spaces/Srgb.zig").Srgb;
 const Xyz = @import("color-spaces/Xyz.zig").Xyz;
-const Yiq = @import("color-spaces/Yiq.zig").Yiq;
-const Yuv = @import("color-spaces/Yuv.zig").Yuv;
 const Yxy = @import("color-spaces/Yxy.zig").Yxy;
 
 pub const ColorSpace = enum {
@@ -21,8 +19,6 @@ pub const ColorSpace = enum {
     hwb,
     srgb,
     xyz,
-    yiq,
-    yuv,
     yxy,
 };
 
@@ -35,8 +31,6 @@ pub const Color= union(ColorSpace) {
     hwb: Hwb,
     srgb: Srgb,
     xyz: Xyz,
-    yiq: Yiq,
-    yuv: Yuv,
     yxy: Yxy,
 };
 

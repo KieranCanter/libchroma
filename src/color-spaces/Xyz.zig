@@ -33,7 +33,7 @@ pub const Xyz = struct {
             .g = self.x * XYZ_TO_SRGB[1][0] + self.y * XYZ_TO_SRGB[1][1] + self.z * XYZ_TO_SRGB[1][2],
             .b = self.x * XYZ_TO_SRGB[2][0] + self.y * XYZ_TO_SRGB[2][1] + self.z * XYZ_TO_SRGB[2][2],
         };
-        return LinearSrgb.toSrgb(linear);
+        return linear.toSrgb();
     }
 
     pub fn toCmyk(self: Xyz) Cmyk {
