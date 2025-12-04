@@ -8,6 +8,7 @@ const Hsl = @import("Hsl.zig").Hsl;
 const Hsv = @import("Hsv.zig").Hsv;
 const Hwb = @import("Hwb.zig").Hwb;
 const Xyz = @import("Xyz.zig").Xyz;
+const Yxy = @import("Yxy.zig").Yxy;
 
 // Matrices for various RGB <-> XYZ conversions with linearized RGB values:
 // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -77,7 +78,7 @@ pub const Srgb = struct {
         return std.math.pow((val + 0.055) / 1.055, 2.4);
     }
 
-    // Formula for sRGB -> CMYK:
+    // Formula for sRGB -> CMYK conversion:
     // https://www.101computing.net/cmyk-to-rgb-conversion-algorithm/
     pub fn toCmyk(self: Srgb) Cmyk {
         const k = @max(self.r, self.g, self.b);
@@ -170,7 +171,7 @@ pub const Srgb = struct {
         return Hsv{ .h = h, .s = s, .v = xmax };
     }
 
-    // Formula for sRGB -> HWB:
+    // Formula for sRGB -> HWB conversion:
     // https://www.w3.org/TR/css-color-4/#rgb-to-hwb
     pub fn toHwb(self: Srgb) Hwb {
         const xmax = @max(self.r, self.g, self.b);
@@ -246,4 +247,9 @@ pub const Srgb = struct {
 
         return h;
     }
+
+    pub fn toYxy(self: Srgb) Yxy {
+        return self.toXyz().toYxy();
+    }
+
 };

@@ -10,6 +10,7 @@ const Srgb = @import("color-spaces/Srgb.zig").Srgb;
 const Xyz = @import("color-spaces/Xyz.zig").Xyz;
 const Yiq = @import("color-spaces/Yiq.zig").Yiq;
 const Yuv = @import("color-spaces/Yuv.zig").Yuv;
+const Yxy = @import("color-spaces/Yxy.zig").Yxy;
 
 pub const ColorSpace = enum {
     cmyk,
@@ -22,6 +23,7 @@ pub const ColorSpace = enum {
     xyz,
     yiq,
     yuv,
+    yxy,
 };
 
 pub const Color= union(ColorSpace) {
@@ -35,6 +37,7 @@ pub const Color= union(ColorSpace) {
     xyz: Xyz,
     yiq: Yiq,
     yuv: Yuv,
+    yxy: Yxy,
 };
 
 pub const AlphaColor = struct {

@@ -6,6 +6,7 @@ const Hsv = @import("Hsv.zig").Hsv;
 const Hwb = @import("Hwbg.zig").Hsv;
 const LinearSrgb = @import("Srgb.zig").LinearSrgb;
 const Srgb = @import("Srgb.zig").Srgb;
+const Yxy = @import("Yxy.zig").Yxy;
 
 // Matrices for various RGB <-> XYZ conversions with linearized RGB values:
 // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -57,5 +58,25 @@ pub const Xyz = struct {
 
     pub fn toHwb(self: Xyz) Hwb {
         return self.toSrgb().toHwb();
+    }
+
+    // Formula for XYZ -> Yxy conversion:
+    // http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
+    pub fn toYxy(self: Xyz) Yxy {
+        const sum = self.x + self.y + self.z;
+
+        if (sum == 0) {
+            return Yxy{.luma = 0.0, .x = 0.0, .y = 0.0};
+        }
+
+        // Y (luma) remains the same as y
+
+        // x
+        const x = self.x / sum;
+
+        // y
+        const y = self.y / sum;
+
+        return Yxy{.luma = self.y, .x = x, .y = y};
     }
 };
