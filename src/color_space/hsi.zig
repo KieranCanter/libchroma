@@ -1,3 +1,5 @@
+const assertFloatType = @import("../validation.zig").assertFloatType;
+
 const Hsl = @import("hsl.zig").Hsl;
 const Hsv = @import("hsv.zig").Hsv;
 const Srgb = @import("srgb.zig").Srgb;
@@ -9,20 +11,31 @@ const Xyz = @import("xyz.zig").Xyz;
 /// s: saturation value in [0.0, 1.0]
 /// i: intensity value in [0.0, 1.0]
 pub fn Hsi(comptime T: type) type {
+    assertFloatType(T);
+
     return struct {
         const Self = @This();
+        pub const Backing = T;
 
         h: ?T,
         s: T,
         i: T,
 
-        pub fn toXyz(self: Self) @TypeOf(Xyz(T)) {
+        pub fn init(h: ?T, s: T, i: T) Self {
+            return .{ .h = h, .s = s, .i = i };
+        }
+
+        pub fn toXyz(self: Self) Xyz(T) {
             return self.toSrgb().toXyz();
+        }
+
+        pub fn fromXyz(xyz: anytype) Self {
+            return Srgb(T).fromXyz(xyz).toHsi();
         }
 
         // Formula for HSI -> sRGB conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#HSI_to_RGB
-        pub fn toSrgb(self: Self) @TypeOf(Srgb(T)) {
+        pub fn toSrgb(self: Self) Srgb(T) {
             if (self.h == null) {
                 return Srgb(T).init(self.i, self.i, self.i);
             }
