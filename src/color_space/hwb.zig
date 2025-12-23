@@ -1,3 +1,5 @@
+const assertFloatType = @import("../validation.zig").assertFloatType;
+
 const Hsv = @import("hsv.zig").Hsv;
 const Srgb = @import("srgb.zig").Srgb;
 const Xyz = @import("xyz.zig").Xyz;
@@ -8,20 +10,31 @@ const Xyz = @import("xyz.zig").Xyz;
 /// w: whiteness value in [0.0, 1.0]
 /// b: blackness value in [0.0, 1.0]
 pub fn Hwb(comptime T: type) type {
+    assertFloatType(T);
+
     return struct {
         const Self = @This();
+        pub const Backing = T;
 
         h: ?T,
         w: T,
         b: T,
 
-        pub fn toXyz(self: Self) @TypeOf(Xyz(T)) {
+        pub fn init(h: ?T, w: T, b: T) Self {
+            return .{ .h = h, .w = w, .b = b };
+        }
+
+        pub fn toXyz(self: Self) Xyz(T) {
             return self.toSrgb().toXyz();
+        }
+
+        pub fn fromXyz(xyz: anytype) Self {
+            return Srgb(T).fromXyz(xyz).toHwb();
         }
 
         // Formula for HWB -> sRGB conversion:
         // https://alvyray.com/Papers/CG/HWB_JGTv208.pdf
-        pub fn toSrgb(self: Self) @TypeOf(Srgb(T)) {
+        pub fn toSrgb(self: Self) Srgb(T) {
             if (self.h == null) {
                 const gray = 1.0 - self.b;
                 return Srgb(T).init(gray, gray, gray);
@@ -51,7 +64,7 @@ pub fn Hwb(comptime T: type) type {
 
         // Formula for HWB -> HSV conversion:
         // https://en.wikipedia.org/wiki/HWB_color_model
-        pub fn toHsv(self: Self) @TypeOf(Hsv(T)) {
+        pub fn toHsv(self: Self) Hsv(T) {
             const s = 1 - (self.w / (1 - self.b));
             const v = 1 - self.b;
             return Hsv(T).init(self.h, s, v);
