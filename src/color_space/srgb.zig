@@ -1,6 +1,7 @@
 const std = @import("std");
 const assertRgbType = @import("../validation.zig").assertRgbType;
 const expectColorsApproxEqAbs = @import("../validation.zig").expectColorsApproxEqAbs;
+const XyzTypeFrom = @import("xyz.zig").XyzTypeFrom;
 
 const Cmyk = @import("Cmyk.zig").Cmyk;
 const Hsi = @import("Hsi.zig").Hsi;
@@ -30,7 +31,7 @@ pub const SrgbError = error{
     InvalidHexString,
 };
 
-fn rgbTypeCast(val: anytype, comptime U: type) U {
+fn rgbCast(val: anytype, comptime U: type) U {
     const T = @TypeOf(val);
     assertRgbType(U);
 
@@ -44,12 +45,12 @@ fn rgbTypeCast(val: anytype, comptime U: type) U {
             else => unreachable,
         },
         f32 => switch (U) {
-            u8 => @as(u8, @intFromFloat(val * 255)),
+            u8 => @as(u8, @intFromFloat(@round(val * 255))),
             f64 => @as(f64, @floatCast(val)),
             else => unreachable,
         },
         f64 => switch (U) {
-            u8 => @as(u8, @intFromFloat(val * 255)),
+            u8 => @as(u8, @intFromFloat(@round(val * 255))),
             f32 => @as(f32, @floatCast(val)),
             else => unreachable,
         },
@@ -78,31 +79,42 @@ pub fn Srgb(comptime T: type) type {
         }
 
         pub inline fn cast(self: Self, comptime U: type) Srgb(U) {
-            const r = rgbTypeCast(self.r, U);
-            const g = rgbTypeCast(self.g, U);
-            const b = rgbTypeCast(self.b, U);
+            const r = rgbCast(self.r, U);
+            const g = rgbCast(self.g, U);
+            const b = rgbCast(self.b, U);
             return Srgb(U).init(r, g, b);
         }
 
-        pub fn toXyz(self: Self.Srgb(T)) @TypeOf(Xyz(T)) {
-            const linear = toLinear(self);
-            return Xyz{
-                .x = linear.r * SRGB_TO_XYZ[0][0] + linear.g * SRGB_TO_XYZ[0][1] + linear.b * SRGB_TO_XYZ[0][2],
-                .y = linear.r * SRGB_TO_XYZ[1][0] + linear.g * SRGB_TO_XYZ[1][1] + linear.b * SRGB_TO_XYZ[1][2],
-                .z = linear.r * SRGB_TO_XYZ[2][0] + linear.g * SRGB_TO_XYZ[2][1] + linear.b * SRGB_TO_XYZ[2][2],
-            };
-        }
+        pub fn toXyz(self: Self) Xyz(T) {
+            if (T == u8) {
+                @compileError("Cannot convert Srgb(" ++ T ++ ") to Xyz(" ++ T ++ "), please cast to f32 or f64 first");
+            }
 
-        pub fn fromXyz(xyz: Xyz) Self {
-            const linear = LinearSrgb(T).init(
-                xyz.x * XYZ_TO_SRGB[0][0] + xyz.y * XYZ_TO_SRGB[0][1] + xyz.z * XYZ_TO_SRGB[0][2],
-                xyz.x * XYZ_TO_SRGB[1][0] + xyz.y * XYZ_TO_SRGB[1][1] + xyz.z * XYZ_TO_SRGB[1][2],
-                xyz.x * XYZ_TO_SRGB[2][0] + xyz.y * XYZ_TO_SRGB[2][1] + xyz.z * XYZ_TO_SRGB[2][2],
+            const linear = self.toLinear();
+            return Xyz(T).init(
+                linear.r * SRGB_TO_XYZ[0][0] + linear.g * SRGB_TO_XYZ[0][1] + linear.b * SRGB_TO_XYZ[0][2],
+                linear.r * SRGB_TO_XYZ[1][0] + linear.g * SRGB_TO_XYZ[1][1] + linear.b * SRGB_TO_XYZ[1][2],
+                linear.r * SRGB_TO_XYZ[2][0] + linear.g * SRGB_TO_XYZ[2][1] + linear.b * SRGB_TO_XYZ[2][2],
             );
-            return linear.toSrgb();
         }
 
-        pub fn toLinear(self: Self) @TypeOf(LinearSrgb(T)) {
+        pub fn fromXyz(xyz: anytype) Self {
+            const U = @TypeOf(xyz).Backing;
+
+            const lin_r = xyz.x * @as(U, XYZ_TO_SRGB[0][0]) + xyz.y * @as(U, XYZ_TO_SRGB[0][1]) + xyz.z * @as(U, XYZ_TO_SRGB[0][2]);
+            const lin_g = xyz.x * @as(U, XYZ_TO_SRGB[1][0]) + xyz.y * @as(U, XYZ_TO_SRGB[1][1]) + xyz.z * @as(U, XYZ_TO_SRGB[1][2]);
+            const lin_b = xyz.x * @as(U, XYZ_TO_SRGB[2][0]) + xyz.y * @as(U, XYZ_TO_SRGB[2][1]) + xyz.z * @as(U, XYZ_TO_SRGB[2][2]);
+
+            const linear = LinearSrgb(U).init(lin_r, lin_g, lin_b);
+            const float_srgb = linear.toSrgb();
+
+            const r = rgbCast(float_srgb.r, T);
+            const g = rgbCast(float_srgb.g, T);
+            const b = rgbCast(float_srgb.b, T);
+            return Srgb(T).init(r, g, b);
+        }
+
+        pub fn toLinear(self: Self) LinearSrgb(T) {
             return LinearSrgb(T).init(
                 gammaToLinear(self.r),
                 gammaToLinear(self.g),
@@ -113,24 +125,28 @@ pub fn Srgb(comptime T: type) type {
         // Formulae for sRGB <-> Linear conversions:
         // https://entropymine.com/imageworsener/srgbformula/
         fn gammaToLinear(val: T) T {
-            var fl: f32 = val;
-            if (T == u8) {
-                fl = @as(f32, @floatFromInt(val)) / 255;
-            }
+            var fl = switch (T) {
+                u8 => @as(f32, @floatFromInt(val)) / 255,
+                f32, f64 => val,
+                else => unreachable,
+            };
 
             if (fl <= 0.04045) {
                 fl /= 12.92;
             } else {
-                fl = std.math.pow(f32, (fl + 0.055) / 1.055, 2.4);
+                fl = std.math.pow(@TypeOf(fl), (fl + 0.055) / 1.055, 2.4);
             }
 
-            if (T != u8) return fl;
-            return @as(u8, @intFromFloat(fl * 255));
+            return switch (T) {
+                u8 => @as(u8, @intFromFloat(@round(fl * 255))),
+                f32, f64 => fl,
+                else => unreachable,
+            };
         }
 
         // Formula for sRGB -> CMYK conversion:
         // https://www.101computing.net/cmyk-to-rgb-conversion-algorithm/
-        pub fn toCmyk(self: Self) @TypeOf(Cmyk(T)) {
+        pub fn toCmyk(self: Self) Cmyk(T) {
             const k = @max(self.r, self.g, self.b);
 
             const c = (1.0 - self.r - k) / (1.0 - k);
@@ -140,13 +156,13 @@ pub fn Srgb(comptime T: type) type {
             return Cmyk(T).init(c, m, y, k);
         }
 
-        pub fn toHex(self: Self) @TypeOf(HexSrgb(T)) {
-            return HexSrgb(T).initFromSrgb(self);
+        pub fn toHex(self: Self) HexSrgb {
+            return HexSrgb.initFromSrgb(self);
         }
 
         // Formula for sRGB -> HSI conversion:
         // https://www.rmuti.ac.th/user/kedkarn/impfile/RGB_to_HSI.pdf
-        pub fn toHsi(self: Self) @TypeOf(Hsi(T)) {
+        pub fn toHsi(self: Self) Hsi(T) {
             const xmax = @max(self.r, self.g, self.b);
             const xmin = @min(self.r, self.g, self.b);
             const chroma = xmax - xmin;
@@ -171,7 +187,7 @@ pub fn Srgb(comptime T: type) type {
 
         // Formula for sRGB -> HSL conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
-        pub fn toHsl(self: Self) @TypeOf(Hsl(T)) {
+        pub fn toHsl(self: Self) Hsl(T) {
             const xmax = @max(self.r, self.g, self.b);
             const xmin = @min(self.r, self.g, self.b);
             const chroma = xmax - xmin;
@@ -196,7 +212,7 @@ pub fn Srgb(comptime T: type) type {
 
         // Formula for sRGB -> HSL conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
-        pub fn toHsv(self: Self) @TypeOf(Hsv(T)) {
+        pub fn toHsv(self: Self) Hsv(T) {
             // Value
             const xmax = @max(self.r, self.g, self.b);
             const xmin = @min(self.r, self.g, self.b);
@@ -219,7 +235,7 @@ pub fn Srgb(comptime T: type) type {
 
         // Formula for sRGB -> HWB conversion:
         // https://www.w3.org/TR/css-color-4/#rgb-to-hwb
-        pub fn toHwb(self: Self) @TypeOf(Hwb(T)) {
+        pub fn toHwb(self: Self) Hwb(T) {
             const xmax = @max(self.r, self.g, self.b);
             const xmin = @min(self.r, self.g, self.b);
 
@@ -294,7 +310,7 @@ pub fn Srgb(comptime T: type) type {
             return h;
         }
 
-        pub fn toYxy(self: Self) @TypeOf(Yxy(T)) {
+        pub fn toYxy(self: Self) Yxy(T) {
             return self.toXyz().toYxy();
         }
     };
@@ -318,7 +334,7 @@ pub fn LinearSrgb(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        pub fn toXyz(self: Self) @TypeOf(Xyz(T)) {
+        pub fn toXyz(self: Self) Xyz(T) {
             return Xyz(T).init(
                 self.r * SRGB_TO_XYZ[0][0] + self.g * SRGB_TO_XYZ[0][1] + self.b * SRGB_TO_XYZ[0][2],
                 self.r * SRGB_TO_XYZ[1][0] + self.g * SRGB_TO_XYZ[1][1] + self.b * SRGB_TO_XYZ[1][2],
@@ -326,7 +342,7 @@ pub fn LinearSrgb(comptime T: type) type {
             );
         }
 
-        pub fn fromXyz(xyz: @TypeOf(Xyz(T))) Self {
+        pub fn fromXyz(xyz: Xyz(T)) Self {
             return Self.init(
                 xyz.x * XYZ_TO_SRGB[0][0] + xyz.y * XYZ_TO_SRGB[0][1] + xyz.z * XYZ_TO_SRGB[0][2],
                 xyz.x * XYZ_TO_SRGB[1][0] + xyz.y * XYZ_TO_SRGB[1][1] + xyz.z * XYZ_TO_SRGB[1][2],
@@ -358,7 +374,7 @@ pub fn LinearSrgb(comptime T: type) type {
             }
 
             return switch (T) {
-                u8 => @as(u8, @intFromFloat(fl * 255)),
+                u8 => @as(u8, @intFromFloat(@round(fl * 255))),
                 f32, f64 => fl,
                 else => unreachable,
             };
@@ -439,12 +455,13 @@ pub const HexSrgb = struct {
         return .{ .value = parseHexU8(r, g, b) };
     }
 
-    pub fn toXyz(self: Self, comptime T: type) @TypeOf(Xyz) {
+    pub fn toXyz(self: Self, comptime T: type) Xyz(T) {
         return self.toSrgb(T).toXyz();
     }
 
-    pub fn fromXyz(xyz: @TypeOf(Xyz)) Self {
-        return initFromSrgb(xyz.toSrgb());
+    pub fn fromXyz(xyz: anytype) Self {
+        const T = @TypeOf(xyz).Backing;
+        return initFromSrgb(Srgb(T).fromXyz(xyz));
     }
 
     pub inline fn toSrgb(self: Self, comptime T: type) Srgb(T) {
@@ -464,7 +481,12 @@ pub const HexSrgb = struct {
     }
 };
 
-// Tolerances are used for float comparisons to allow inexact approximation checks:
+// ///////////////////////////////////////////////////////////////////////// //
+// ///////////////////////////////   TESTS   /////////////////////////////// //
+// ///////////////////////////////////////////////////////////////////////// //
+
+// Tolerances are used for some comparisons to allow inexact approximation checks:
+// * For u8, compared values should differ by no more than 1.
 // * For f32, when truncated to 3 decimal places, compared values should differ by no more than
 // 0.001.
 // * For f64, when truncated to 6 decimal places, compared values should differ by no more
@@ -476,6 +498,167 @@ pub const HexSrgb = struct {
 // because at the sixth decimal place, there is about a 0.0000013 difference, but if we truncated
 // the actual value to six decimal places, it would be 0.392157, which only has a 0.000001
 // difference with our expected value.
+//
+// There also exist situations where rounding/truncation during conversions will cause integer
+// values to not be exactly equal.
+
+// //////////////////////// //
+// ////////  Srgb  //////// //
+// //////////////////////// //
+test "Srgb(u8) toLinear" {
+    const tolerance: u8 = 1;
+
+    var srgb = Srgb(u8).init(200, 100, 50);
+    var expected = LinearSrgb(u8).init(147, 32, 8);
+    var actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(0, 0, 0);
+    expected = LinearSrgb(u8).init(0, 0, 0);
+    actual = srgb.toLinear();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(255, 255, 255);
+    expected = LinearSrgb(u8).init(255, 255, 255);
+    actual = srgb.toLinear();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(22, 200, 45);
+    expected = LinearSrgb(u8).init(2, 147, 7);
+    actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f32) toLinear" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    var expected = LinearSrgb(f32).init(0.578, 0.127, 0.032);
+    var actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0, 0, 0);
+    expected = LinearSrgb(f32).init(0, 0, 0);
+    actual = srgb.toLinear();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(1, 1, 1);
+    expected = LinearSrgb(f32).init(1, 1, 1);
+    actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
+    expected = LinearSrgb(f32).init(0.008, 0.577, 0.026);
+    actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f64) toLinear" {
+    const tolerance = 0.000002;
+
+    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    var expected = LinearSrgb(f64).init(0.577580, 0.127438, 0.031896);
+    var actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0, 0, 0);
+    expected = LinearSrgb(f64).init(0, 0, 0);
+    actual = srgb.toLinear();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(1, 1, 1);
+    expected = LinearSrgb(f64).init(1, 1, 1);
+    actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
+    expected = LinearSrgb(f64).init(0.008023, 0.577580, 0.026241);
+    actual = srgb.toLinear();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f32) toXyz" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    var expected = Xyz(f32).init(0.289, 0.216, 0.056);
+    var actual = srgb.toXyz();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0, 0, 0);
+    expected = Xyz(f32).init(0, 0, 0);
+    actual = srgb.toXyz();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(1, 1, 1);
+    expected = Xyz(f32).init(0.950, 1.000, 1.089);
+    actual = srgb.toXyz();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
+    expected = Xyz(f32).init(0.214, 0.417, 0.093);
+    actual = srgb.toXyz();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f64) toXyz" {
+    const tolerance = 0.000002;
+
+    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    var expected = Xyz(f64).init(0.289550, 0.216274, 0.056667);
+    var actual = srgb.toXyz();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0, 0, 0);
+    expected = Xyz(f64).init(0, 0, 0);
+    actual = srgb.toXyz();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(1, 1, 1);
+    expected = Xyz(f64).init(0.950470, 1.000000, 1.088830);
+    actual = srgb.toXyz();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
+    expected = Xyz(f64).init(0.214573, 0.416657, 0.093935);
+    actual = srgb.toXyz();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+// Cmyk
+// Hex
+// Hsi
+// Hsl
+// Hsv
+// Hwb
+// Yxy
+
+// //////////////////////// //
+// /////  LinearSrgb  ///// //
+// //////////////////////// //
+test "LinearSrgb(u8) toSrgb" {
+    const tolerance: u8 = 1;
+
+    var linear = LinearSrgb(u8).init(147, 32, 8);
+    var expected = Srgb(u8).init(200, 100, 49);
+    var actual = linear.toSrgb();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    linear = LinearSrgb(u8).init(0, 0, 0);
+    expected = Srgb(u8).init(0, 0, 0);
+    actual = linear.toSrgb();
+    try std.testing.expectEqual(expected, actual);
+
+    linear = LinearSrgb(u8).init(255, 255, 255);
+    expected = Srgb(u8).init(255, 255, 255);
+    actual = linear.toSrgb();
+    try std.testing.expectEqual(expected, actual);
+
+    linear = LinearSrgb(u8).init(2, 147, 7);
+    expected = Srgb(u8).init(22, 200, 45);
+    actual = linear.toSrgb();
+    try expectColorsApproxEqAbs(expected, actual, tolerance);
+}
 
 test "LinearSrgb(f32) toSrgb" {
     const tolerance = 0.002;
@@ -525,6 +708,9 @@ test "LinearSrgb(f64) toSrgb" {
     try expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
+// /////////////////////// //
+// //////  HexSrgb  ////// //
+// /////////////////////// //
 test "HexSrgb initFromString" {
     var hex = try HexSrgb.initFromString("C86432");
     var expected: u24 = 0xc86432;
