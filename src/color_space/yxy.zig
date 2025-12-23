@@ -1,3 +1,5 @@
+const assertFloatType = @import("../validation.zig").assertFloatType;
+
 const Srgb = @import("srgb.zig").Srgb;
 const Xyz = @import("xyz.zig").Xyz;
 
@@ -7,12 +9,19 @@ const Xyz = @import("xyz.zig").Xyz;
 /// x: chroma-x value in [0.0, 1.0]
 /// y: chroma-y value in [0.0, 1.0]
 pub fn Yxy(comptime T: type) type {
+    assertFloatType(T);
+
     return struct {
         const Self = @This();
+        const Backing = T;
 
         luma: T,
         x: T,
         y: T,
+
+        pub fn init(luma: T, x: T, y: T) Self {
+            return .{ .luma = luma, .x = x, .y = y };
+        }
 
         // Formula for Yxy -> XYZ conversion:
         // http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
