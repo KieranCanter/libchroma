@@ -1,3 +1,5 @@
+const assertFloatType = @import("../validation.zig").assertFloatType;
+
 const Hsv = @import("Hsv.zig");
 const Srgb = @import("Srgb.zig");
 const Xyz = @import("Xyz.zig");
@@ -8,19 +10,31 @@ const Xyz = @import("Xyz.zig");
 /// s: saturation value in [0.0, 1.0]
 /// l: lightness value in [0.0, 1.0]
 pub fn Hsl(comptime T: type) type {
+    assertFloatType(T);
+
     return struct {
         const Self = @This();
+        pub const Backing = T;
+
         h: ?T,
         s: T,
         l: T,
 
-        pub fn toXyz(self: Self) @TypeOf(Xyz(T)) {
+        pub fn init(h: ?T, s: T, l: T) Self {
+            return .{ .h = h, .s = s, .l = l };
+        }
+
+        pub fn toXyz(self: Self) Xyz(T) {
             return self.toSrgb().toXyz();
+        }
+
+        pub fn fromXyz(xyz: anytype) Self {
+            return Srgb(T).fromXyz(xyz).toHsl();
         }
 
         // Formula for HSL -> sRGB conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#HSL_to_RGB
-        pub fn toSrgb(self: Self) @TypeOf(Srgb(T)) {
+        pub fn toSrgb(self: Self) Srgb(T) {
             if (self.h == null) {
                 return Srgb(T).init(self.l, self.l, self.l);
             }
@@ -44,7 +58,7 @@ pub fn Hsl(comptime T: type) type {
 
         // Formula for HSL -> HSV conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#HSL_to_HSV
-        pub fn toHsv(self: Self) @TypeOf(Hsv(T)) {
+        pub fn toHsv(self: Self) Hsv(T) {
             // Value
             const v = self.l + self.s * @min(self.l, 1 - self.l);
 
