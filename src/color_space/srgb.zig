@@ -1,7 +1,5 @@
 const std = @import("std");
-const assertRgbType = @import("../validation.zig").assertRgbType;
-const expectColorsApproxEqAbs = @import("../validation.zig").expectColorsApproxEqAbs;
-const XyzTypeFrom = @import("xyz.zig").XyzTypeFrom;
+const validation = @import("../validation.zig");
 
 const Cmyk = @import("Cmyk.zig").Cmyk;
 const Hsi = @import("Hsi.zig").Hsi;
@@ -33,7 +31,7 @@ pub const SrgbError = error{
 
 fn rgbCast(val: anytype, comptime U: type) U {
     const T = @TypeOf(val);
-    assertRgbType(U);
+    validation.assertRgbType(U);
 
     if (T == U) {
         return val;
@@ -64,11 +62,12 @@ fn rgbCast(val: anytype, comptime U: type) U {
 /// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
 pub fn Srgb(comptime T: type) type {
-    assertRgbType(T);
+    validation.assertRgbType(T);
 
     return struct {
         const Self = @This();
         pub const Backing = T;
+        const F = validation.rgbToFloatType(T);
 
         r: T,
         g: T,
@@ -85,13 +84,15 @@ pub fn Srgb(comptime T: type) type {
             return Srgb(U).init(r, g, b);
         }
 
-        pub fn toXyz(self: Self) Xyz(T) {
-            if (T == u8) {
-                @compileError("Cannot convert Srgb(" ++ T ++ ") to Xyz(" ++ T ++ "), please cast to f32 or f64 first");
+        pub fn toXyz(self: Self) Xyz(F) {
+            var linear: LinearSrgb(F) = undefined;
+            if (T != F) {
+                linear = self.cast(F).toLinear();
+            } else {
+                linear = self.toLinear();
             }
 
-            const linear = self.toLinear();
-            return Xyz(T).init(
+            return Xyz(F).init(
                 linear.r * SRGB_TO_XYZ[0][0] + linear.g * SRGB_TO_XYZ[0][1] + linear.b * SRGB_TO_XYZ[0][2],
                 linear.r * SRGB_TO_XYZ[1][0] + linear.g * SRGB_TO_XYZ[1][1] + linear.b * SRGB_TO_XYZ[1][2],
                 linear.r * SRGB_TO_XYZ[2][0] + linear.g * SRGB_TO_XYZ[2][1] + linear.b * SRGB_TO_XYZ[2][2],
@@ -108,9 +109,11 @@ pub fn Srgb(comptime T: type) type {
             const linear = LinearSrgb(U).init(lin_r, lin_g, lin_b);
             const float_srgb = linear.toSrgb();
 
+            // Cast from backing type of Xyz(U) to backing type of Srgb(T)
             const r = rgbCast(float_srgb.r, T);
             const g = rgbCast(float_srgb.g, T);
             const b = rgbCast(float_srgb.b, T);
+
             return Srgb(T).init(r, g, b);
         }
 
@@ -146,14 +149,18 @@ pub fn Srgb(comptime T: type) type {
 
         // Formula for sRGB -> CMYK conversion:
         // https://www.101computing.net/cmyk-to-rgb-conversion-algorithm/
-        pub fn toCmyk(self: Self) Cmyk(T) {
-            const k = @max(self.r, self.g, self.b);
+        pub fn toCmyk(self: Self) Cmyk(F) {
+            const r, const g, const b = self.rgbToFloatType();
 
-            const c = (1.0 - self.r - k) / (1.0 - k);
-            const m = (1.0 - self.g - k) / (1.0 - k);
-            const y = (1.0 - self.b - k) / (1.0 - k);
+            const k = 1.0 - @max(r, g, b);
+            if (k == 1.0) { // Avoid division by 0
+                return Cmyk(F).init(0, 0, 0, k);
+            }
+            const c = (1.0 - r - k) / (1.0 - k);
+            const m = (1.0 - g - k) / (1.0 - k);
+            const y = (1.0 - b - k) / (1.0 - k);
 
-            return Cmyk(T).init(c, m, y, k);
+            return Cmyk(F).init(c, m, y, k);
         }
 
         pub fn toHex(self: Self) HexSrgb {
@@ -162,97 +169,105 @@ pub fn Srgb(comptime T: type) type {
 
         // Formula for sRGB -> HSI conversion:
         // https://www.rmuti.ac.th/user/kedkarn/impfile/RGB_to_HSI.pdf
-        pub fn toHsi(self: Self) Hsi(T) {
-            const xmax = @max(self.r, self.g, self.b);
-            const xmin = @min(self.r, self.g, self.b);
+        pub fn toHsi(self: Self) Hsi(F) {
+            const r, const g, const b = self.rgbToFloatType();
+
+            const xmax = @max(r, g, b);
+            const xmin = @min(r, g, b);
             const chroma = xmax - xmin;
 
             // Intensity
-            const i = (self.r + self.g + self.b) / 3.0;
+            const i = (r + g + b) / 3.0;
 
             // Saturation
-            var s: f32 = 0.0;
+            var s: F = 0.0;
             if (i != 0) {
                 s = 1.0 - (xmin / i);
             }
 
             // Hue
-            var h: ?f32 = null;
+            var h: ?F = null;
             if (chroma != 0) {
-                h = self.computeHue(xmin, xmax);
+                h = computeHue(r, g, b, xmax, xmin);
             }
 
-            return Hsi(T).init(h, s, i);
+            return Hsi(F).init(h, s, i);
         }
 
         // Formula for sRGB -> HSL conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
-        pub fn toHsl(self: Self) Hsl(T) {
-            const xmax = @max(self.r, self.g, self.b);
-            const xmin = @min(self.r, self.g, self.b);
+        pub fn toHsl(self: Self) Hsl(F) {
+            const r, const g, const b = self.rgbToFloatType();
+
+            const xmax = @max(r, g, b);
+            const xmin = @min(r, g, b);
             const chroma = xmax - xmin;
 
             // Lightness
             const l = (xmax + xmin) / 2.0;
 
             // Hue
-            var h: ?f32 = null;
+            var h: ?F = null;
             if (chroma != 0) {
-                h = self.computeHue(xmin, xmax);
+                h = computeHue(r, g, b, xmax, xmin);
             }
 
             // Saturation
-            var s: f32 = 0.0;
+            var s: F = 0.0;
             if (l != 0 and l != 1) {
                 s = chroma / (1.0 - @abs(2.0 * l - 1.0));
             }
 
-            return Hsl(T).init(h, s, l);
+            return Hsl(F).init(h, s, l);
         }
 
         // Formula for sRGB -> HSL conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
-        pub fn toHsv(self: Self) Hsv(T) {
+        pub fn toHsv(self: Self) Hsv(F) {
+            const r, const g, const b = self.rgbToFloatType();
+
             // Value
-            const xmax = @max(self.r, self.g, self.b);
-            const xmin = @min(self.r, self.g, self.b);
+            const xmax = @max(r, g, b);
+            const xmin = @min(r, g, b);
             const chroma = xmax - xmin;
 
             // Hue
-            var h: ?f32 = null;
+            var h: ?F = null;
             if (chroma != 0) {
-                h = self.computeHue(xmin, xmax);
+                h = computeHue(r, g, b, xmax, xmin);
             }
 
             // Saturation
-            var s: f32 = 0.0;
+            var s: F = 0.0;
             if (xmax != 0) {
                 s = chroma / xmax;
             }
 
-            return Hsv(T).init(h, s, xmax);
+            return Hsv(F).init(h, s, xmax);
         }
 
         // Formula for sRGB -> HWB conversion:
         // https://www.w3.org/TR/css-color-4/#rgb-to-hwb
-        pub fn toHwb(self: Self) Hwb(T) {
-            const xmax = @max(self.r, self.g, self.b);
-            const xmin = @min(self.r, self.g, self.b);
+        pub fn toHwb(self: Self) Hwb(F) {
+            const r, const g, const b = self.rgbToFloatType();
+
+            const xmax = @max(r, g, b);
+            const xmin = @min(r, g, b);
 
             // Whiteness
-            const w = xmin;
+            const white = xmin;
 
             // Blackness
-            const b = 1.0 - xmax;
+            const black = 1.0 - xmax;
 
             // Hue
-            const epsilon: f32 = 1 / 100000; // for floating point error
-            var h: ?f32 = null;
-            if (w + b >= 1 - epsilon) {
-                h = self.computeHue(xmin, xmax);
+            const epsilon: F = 1 / 100000; // for floating point error
+            var h: ?F = null;
+            if (white + black < 1 - epsilon) {
+                h = computeHue(r, g, b, xmax, xmin);
             }
 
-            return Hwb(T).init(h, w, b);
+            return Hwb(F).init(h, white, black);
         }
 
         /// Typically, the hue of HSI, HSL, HSV, and HWB is calulcated via an trigonemetric algorithm as
@@ -294,15 +309,15 @@ pub fn Srgb(comptime T: type) type {
         /// conditionally check for negativity and add 360°)
         /// * `Hue_G` represents the 60°-180° sector, so it is offset by 2 (120°)
         /// * `Hue_B` represents the 180°-300° sector, so it is offset by 4 (240°)
-        fn computeHue(self: Self, min_channel: f32, max_channel: f32) f32 {
-            const chroma = max_channel - min_channel;
-            var h: f32 = 0;
-            if (max_channel == self.r) {
-                h = 60.0 * @mod((self.g - self.b) / chroma, 6);
-            } else if (max_channel == self.g) {
-                h = 60.0 * ((self.b - self.r) / chroma + 2.0);
-            } else if (max_channel == self.b) {
-                h = 60.0 * ((self.r - self.g) / chroma + 4.0);
+        fn computeHue(r: F, g: F, b: F, xmax: F, xmin: F) F {
+            const chroma = xmax - xmin;
+            var h: F = 0;
+            if (xmax == r) {
+                h = 60.0 * @mod((g - b) / chroma, 6);
+            } else if (xmax == g) {
+                h = 60.0 * ((b - r) / chroma + 2.0);
+            } else if (xmax == b) {
+                h = 60.0 * ((r - g) / chroma + 4.0);
             } else {
                 unreachable;
             }
@@ -310,8 +325,14 @@ pub fn Srgb(comptime T: type) type {
             return h;
         }
 
-        pub fn toYxy(self: Self) Yxy(T) {
-            return self.toXyz().toYxy();
+        // If T is u8, convert to f32, otherwise use existing float type
+        fn rgbToFloatType(self: Self) struct { F, F, F } {
+            if (T != F) {
+                const casted = self.cast(F);
+                return .{ casted.r, casted.g, casted.b };
+            } else {
+                return .{ self.r, self.g, self.b };
+            }
         }
     };
 }
@@ -322,7 +343,7 @@ pub fn Srgb(comptime T: type) type {
 /// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
 pub fn LinearSrgb(comptime T: type) type {
-    assertRgbType(T);
+    validation.assertRgbType(T);
 
     return struct {
         const Self = @This();
@@ -511,7 +532,7 @@ test "Srgb(u8) toLinear" {
     var srgb = Srgb(u8).init(200, 100, 50);
     var expected = LinearSrgb(u8).init(147, 32, 8);
     var actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(u8).init(0, 0, 0);
     expected = LinearSrgb(u8).init(0, 0, 0);
@@ -526,7 +547,7 @@ test "Srgb(u8) toLinear" {
     srgb = Srgb(u8).init(22, 200, 45);
     expected = LinearSrgb(u8).init(2, 147, 7);
     actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 test "Srgb(f32) toLinear" {
@@ -535,7 +556,7 @@ test "Srgb(f32) toLinear" {
     var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
     var expected = LinearSrgb(f32).init(0.578, 0.127, 0.032);
     var actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f32).init(0, 0, 0);
     expected = LinearSrgb(f32).init(0, 0, 0);
@@ -545,12 +566,12 @@ test "Srgb(f32) toLinear" {
     srgb = Srgb(f32).init(1, 1, 1);
     expected = LinearSrgb(f32).init(1, 1, 1);
     actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
     expected = LinearSrgb(f32).init(0.008, 0.577, 0.026);
     actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 test "Srgb(f64) toLinear" {
@@ -559,7 +580,7 @@ test "Srgb(f64) toLinear" {
     var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
     var expected = LinearSrgb(f64).init(0.577580, 0.127438, 0.031896);
     var actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f64).init(0, 0, 0);
     expected = LinearSrgb(f64).init(0, 0, 0);
@@ -569,12 +590,37 @@ test "Srgb(f64) toLinear" {
     srgb = Srgb(f64).init(1, 1, 1);
     expected = LinearSrgb(f64).init(1, 1, 1);
     actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
     expected = LinearSrgb(f64).init(0.008023, 0.577580, 0.026241);
     actual = srgb.toLinear();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
+test "Srgb(u8) toXyz" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(u8).init(200, 100, 50);
+    var expected = Xyz(f32).init(0.289, 0.216, 0.056);
+    var actual = srgb.toXyz();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(0, 0, 0);
+    expected = Xyz(f32).init(0, 0, 0);
+    actual = srgb.toXyz();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(255, 255, 255);
+    expected = Xyz(f32).init(0.950, 1.000, 1.089);
+    actual = srgb.toXyz();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(22, 200, 45);
+    expected = Xyz(f32).init(0.214, 0.417, 0.093);
+    actual = srgb.toXyz();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 test "Srgb(f32) toXyz" {
@@ -583,7 +629,7 @@ test "Srgb(f32) toXyz" {
     var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
     var expected = Xyz(f32).init(0.289, 0.216, 0.056);
     var actual = srgb.toXyz();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f32).init(0, 0, 0);
     expected = Xyz(f32).init(0, 0, 0);
@@ -593,12 +639,12 @@ test "Srgb(f32) toXyz" {
     srgb = Srgb(f32).init(1, 1, 1);
     expected = Xyz(f32).init(0.950, 1.000, 1.089);
     actual = srgb.toXyz();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
     expected = Xyz(f32).init(0.214, 0.417, 0.093);
     actual = srgb.toXyz();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 test "Srgb(f64) toXyz" {
@@ -607,7 +653,7 @@ test "Srgb(f64) toXyz" {
     var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
     var expected = Xyz(f64).init(0.289550, 0.216274, 0.056667);
     var actual = srgb.toXyz();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f64).init(0, 0, 0);
     expected = Xyz(f64).init(0, 0, 0);
@@ -617,21 +663,378 @@ test "Srgb(f64) toXyz" {
     srgb = Srgb(f64).init(1, 1, 1);
     expected = Xyz(f64).init(0.950470, 1.000000, 1.088830);
     actual = srgb.toXyz();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
     expected = Xyz(f64).init(0.214573, 0.416657, 0.093935);
     actual = srgb.toXyz();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
-// Cmyk
-// Hex
-// Hsi
-// Hsl
-// Hsv
-// Hwb
-// Yxy
+// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
+test "Srgb(u8) toCmyk" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(u8).init(200, 100, 50);
+    var expected = Cmyk(f32).init(0.000, 0.500, 0.750, 0.216);
+    var actual = srgb.toCmyk();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(0, 0, 0);
+    expected = Cmyk(f32).init(0, 0, 0, 1);
+    actual = srgb.toCmyk();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(255, 255, 255);
+    expected = Cmyk(f32).init(0, 0, 0, 0);
+    actual = srgb.toCmyk();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(22, 200, 45);
+    expected = Cmyk(f32).init(0.890, 0.000, 0.775, 0.216);
+    actual = srgb.toCmyk();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f32) toCmyk" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    var expected = Cmyk(f32).init(0.000, 0.500, 0.750, 0.216);
+    var actual = srgb.toCmyk();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0, 0, 0);
+    expected = Cmyk(f32).init(0, 0, 0, 1);
+    actual = srgb.toCmyk();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(1, 1, 1);
+    expected = Cmyk(f32).init(0, 0, 0, 0);
+    actual = srgb.toCmyk();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
+    expected = Cmyk(f32).init(0.890, 0.000, 0.775, 0.216);
+    actual = srgb.toCmyk();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f64) toCmyk" {
+    const tolerance = 0.000002;
+
+    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    var expected = Cmyk(f64).init(0.000000, 0.500001, 0.750000, 0.215687);
+    var actual = srgb.toCmyk();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0, 0, 0);
+    expected = Cmyk(f64).init(0, 0, 0, 1);
+    actual = srgb.toCmyk();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(1, 1, 1);
+    expected = Cmyk(f64).init(0, 0, 0, 0);
+    actual = srgb.toCmyk();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
+    expected = Cmyk(f64).init(0.890001, 0.000000, 0.775001, 0.215687);
+    actual = srgb.toCmyk();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
+test "Srgb(u8) toHsi" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(u8).init(200, 100, 50);
+    var expected = Hsi(f32).init(19.999, 0.571, 0.458);
+    var actual = srgb.toHsi();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(0, 0, 0);
+    expected = Hsi(f32).init(null, 0, 0);
+    actual = srgb.toHsi();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(255, 255, 255);
+    expected = Hsi(f32).init(null, 0, 1);
+    actual = srgb.toHsi();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(22, 200, 45);
+    expected = Hsi(f32).init(127.753, 0.753, 0.349);
+    actual = srgb.toHsi();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f32) toHsi" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    var expected = Hsi(f32).init(19.999, 0.571, 0.458);
+    var actual = srgb.toHsi();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0, 0, 0);
+    expected = Hsi(f32).init(null, 0, 0);
+    actual = srgb.toHsi();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(1, 1, 1);
+    expected = Hsi(f32).init(null, 0, 1);
+    actual = srgb.toHsi();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
+    expected = Hsi(f32).init(127.736, 0.753, 0.349);
+    actual = srgb.toHsi();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f64) toHsi" {
+    const tolerance = 0.000002;
+
+    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    var expected = Hsi(f64).init(19.999966, 0.571429, 0.457516);
+    var actual = srgb.toHsi();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0, 0, 0);
+    expected = Hsi(f64).init(null, 0, 0);
+    actual = srgb.toHsi();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(1, 1, 1);
+    expected = Hsi(f64).init(null, 0, 1);
+    actual = srgb.toHsi();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
+    expected = Hsi(f64).init(127.752805, 0.752810, 0.349019);
+    actual = srgb.toHsi();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
+test "Srgb(u8) toHsl" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(u8).init(200, 100, 50);
+    var expected = Hsl(f32).init(19.999, 0.600, 0.490);
+    var actual = srgb.toHsl();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(0, 0, 0);
+    expected = Hsl(f32).init(null, 0, 0);
+    actual = srgb.toHsl();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(255, 255, 255);
+    expected = Hsl(f32).init(null, 0, 1);
+    actual = srgb.toHsl();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(22, 200, 45);
+    expected = Hsl(f32).init(127.753, 0.802, 0.435);
+    actual = srgb.toHsl();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f32) toHsl" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    var expected = Hsl(f32).init(19.999, 0.600, 0.490);
+    var actual = srgb.toHsl();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0, 0, 0);
+    expected = Hsl(f32).init(null, 0, 0);
+    actual = srgb.toHsl();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(1, 1, 1);
+    expected = Hsl(f32).init(null, 0, 1);
+    actual = srgb.toHsl();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
+    expected = Hsl(f32).init(127.736, 0.802, 0.435);
+    actual = srgb.toHsl();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f64) toHsl" {
+    const tolerance = 0.000002;
+
+    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    var expected = Hsl(f64).init(19.999966, 0.600000, 0.490196);
+    var actual = srgb.toHsl();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0, 0, 0);
+    expected = Hsl(f64).init(null, 0, 0);
+    actual = srgb.toHsl();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(1, 1, 1);
+    expected = Hsl(f64).init(null, 0, 1);
+    actual = srgb.toHsl();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
+    expected = Hsl(f64).init(127.752805, 0.801803, 0.435294);
+    actual = srgb.toHsl();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
+test "Srgb(u8) toHsv" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(u8).init(200, 100, 50);
+    var expected = Hsv(f32).init(19.999, 0.750, 0.784);
+    var actual = srgb.toHsv();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(0, 0, 0);
+    expected = Hsv(f32).init(null, 0, 0);
+    actual = srgb.toHsv();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(255, 255, 255);
+    expected = Hsv(f32).init(null, 0, 1);
+    actual = srgb.toHsv();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(22, 200, 45);
+    expected = Hsv(f32).init(127.753, 0.890, 0.784);
+    actual = srgb.toHsv();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f32) toHsv" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    var expected = Hsv(f32).init(19.999, 0.750, 0.784);
+    var actual = srgb.toHsv();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0, 0, 0);
+    expected = Hsv(f32).init(null, 0, 0);
+    actual = srgb.toHsv();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(1, 1, 1);
+    expected = Hsv(f32).init(null, 0, 1);
+    actual = srgb.toHsv();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
+    expected = Hsv(f32).init(127.736, 0.890, 0.784);
+    actual = srgb.toHsv();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f64) toHsv" {
+    const tolerance = 0.000002;
+
+    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    var expected = Hsv(f64).init(19.999966, 0.750000, 0.784313);
+    var actual = srgb.toHsv();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0, 0, 0);
+    expected = Hsv(f64).init(null, 0, 0);
+    actual = srgb.toHsv();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(1, 1, 1);
+    expected = Hsv(f64).init(null, 0, 1);
+    actual = srgb.toHsv();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
+    expected = Hsv(f64).init(127.752805, 0.890001, 0.784313);
+    actual = srgb.toHsv();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
+test "Srgb(u8) toHwb" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(u8).init(200, 100, 50);
+    var expected = Hwb(f32).init(19.999, 0.196, 0.216);
+    var actual = srgb.toHwb();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(u8).init(0, 0, 0);
+    expected = Hwb(f32).init(null, 0, 1);
+    actual = srgb.toHwb();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(255, 255, 255);
+    expected = Hwb(f32).init(null, 1, 0);
+    actual = srgb.toHwb();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(u8).init(22, 200, 45);
+    expected = Hwb(f32).init(127.753, 0.086, 0.216);
+    actual = srgb.toHwb();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f32) toHwb" {
+    const tolerance = 0.002;
+
+    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    var expected = Hwb(f32).init(19.999, 0.196, 0.216);
+    var actual = srgb.toHwb();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f32).init(0, 0, 0);
+    expected = Hwb(f32).init(null, 0, 1);
+    actual = srgb.toHwb();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(1, 1, 1);
+    expected = Hwb(f32).init(null, 1, 0);
+    actual = srgb.toHwb();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
+    expected = Hwb(f32).init(127.736, 0.086, 0.216);
+    actual = srgb.toHwb();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
+
+test "Srgb(f64) toHwb" {
+    const tolerance = 0.000002;
+
+    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    var expected = Hwb(f64).init(19.999966, 0.196078, 0.215687);
+    var actual = srgb.toHwb();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+
+    srgb = Srgb(f64).init(0, 0, 0);
+    expected = Hwb(f64).init(null, 0, 1);
+    actual = srgb.toHwb();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(1, 1, 1);
+    expected = Hwb(f64).init(null, 1, 0);
+    actual = srgb.toHwb();
+    try std.testing.expectEqual(expected, actual);
+
+    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
+    expected = Hwb(f64).init(127.752805, 0.086274, 0.215687);
+    actual = srgb.toHwb();
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+}
 
 // //////////////////////// //
 // /////  LinearSrgb  ///// //
@@ -642,7 +1045,7 @@ test "LinearSrgb(u8) toSrgb" {
     var linear = LinearSrgb(u8).init(147, 32, 8);
     var expected = Srgb(u8).init(200, 100, 49);
     var actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     linear = LinearSrgb(u8).init(0, 0, 0);
     expected = Srgb(u8).init(0, 0, 0);
@@ -657,7 +1060,7 @@ test "LinearSrgb(u8) toSrgb" {
     linear = LinearSrgb(u8).init(2, 147, 7);
     expected = Srgb(u8).init(22, 200, 45);
     actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 test "LinearSrgb(f32) toSrgb" {
@@ -666,7 +1069,7 @@ test "LinearSrgb(f32) toSrgb" {
     var linear = LinearSrgb(f32).init(0.578, 0.127, 0.032);
     var expected = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
     var actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     linear = LinearSrgb(f32).init(0, 0, 0);
     expected = Srgb(f32).init(0, 0, 0);
@@ -676,12 +1079,12 @@ test "LinearSrgb(f32) toSrgb" {
     linear = LinearSrgb(f32).init(1, 1, 1);
     expected = Srgb(f32).init(1, 1, 1);
     actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     linear = LinearSrgb(f32).init(0.008, 0.577, 0.026);
     expected = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
     actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 test "LinearSrgb(f64) toSrgb" {
@@ -690,7 +1093,7 @@ test "LinearSrgb(f64) toSrgb" {
     var linear = LinearSrgb(f64).init(0.577580, 0.127438, 0.031896);
     var expected = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
     var actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     linear = LinearSrgb(f64).init(0, 0, 0);
     expected = Srgb(f64).init(0, 0, 0);
@@ -700,12 +1103,12 @@ test "LinearSrgb(f64) toSrgb" {
     linear = LinearSrgb(f64).init(1, 1, 1);
     expected = Srgb(f64).init(1, 1, 1);
     actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     linear = LinearSrgb(f64).init(0.008023, 0.577580, 0.026241);
     expected = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
     actual = linear.toSrgb();
-    try expectColorsApproxEqAbs(expected, actual, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 // /////////////////////// //
@@ -866,22 +1269,22 @@ test "HexSrgb toSrgb(f32)" {
     var hex = HexSrgb.initFromU24(0xc86432);
     var srgb = hex.toSrgb(f32);
     var expected = Srgb(f32).init(0.784, 0.392, 0.196);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 
     hex = HexSrgb.initFromU24(0x000000);
     srgb = hex.toSrgb(f32);
     expected = Srgb(f32).init(0, 0, 0);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 
     hex = HexSrgb.initFromU24(0xffffff);
     srgb = hex.toSrgb(f32);
     expected = Srgb(f32).init(1, 1, 1);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 
     hex = HexSrgb.initFromU24(0x16c82d);
     srgb = hex.toSrgb(f32);
     expected = Srgb(f32).init(0.086, 0.784, 0.176);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 }
 
 test "HexSrgb toSrgb(f64)" {
@@ -890,20 +1293,20 @@ test "HexSrgb toSrgb(f64)" {
     var hex = HexSrgb.initFromU24(0xc86432);
     var srgb = hex.toSrgb(f64);
     var expected = Srgb(f64).init(0.784314, 0.392157, 0.196078);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 
     hex = HexSrgb.initFromU24(0x000000);
     srgb = hex.toSrgb(f64);
     expected = Srgb(f64).init(0, 0, 0);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 
     hex = HexSrgb.initFromU24(0xffffff);
     srgb = hex.toSrgb(f64);
     expected = Srgb(f64).init(1, 1, 1);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 
     hex = HexSrgb.initFromU24(0x16c82d);
     srgb = hex.toSrgb(f64);
     expected = Srgb(f64).init(0.086275, 0.784314, 0.176471);
-    try expectColorsApproxEqAbs(expected, srgb, tolerance);
+    try validation.expectColorsApproxEqAbs(expected, srgb, tolerance);
 }
