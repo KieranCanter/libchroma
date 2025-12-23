@@ -1,19 +1,30 @@
 const std = @import("std");
 
+const Xyz = @import("color_space/xyz.zig").Xyz;
+
 // Color interface validation
-pub inline fn assertColorInterface(comptime C: type) void {
-    comptime if (!@hasDecl(C, "toXyz")) {
-        @compileError(@typeName(C) ++ " must define a `toXyz()` method");
+pub inline fn assertColorInterface(comptime T: type) void {
+    comptime if (std.mem.endsWith(u8, @typeName(T), "Xyz(f32)") or std.mem.endsWith(u8, @typeName(T), "Xyz(f64)")) {
+        return;
     };
-    comptime if (!@hasDecl(C, "fromXyz")) {
-        @compileError(@typeName(C) ++ " must define a `fromXyz()` method");
+    comptime if (!@hasDecl(T, "toXyz")) {
+        @compileError(@typeName(T) ++ " must define a `toXyz()` method");
+    };
+    comptime if (!@hasDecl(T, "fromXyz")) {
+        @compileError(@typeName(T) ++ " must define a `fromXyz()` method");
     };
 }
 
-// Hue type validation
+// RGB type validation
 pub inline fn assertRgbType(comptime T: type) void {
     comptime if (T == u8 or T == f32 or T == f64) return;
     @compileError("RGB value type must be one of: u8, f32, f64");
+}
+
+// Float type validation
+pub inline fn assertFloatType(comptime T: type) void {
+    comptime if (T == f32 or T == f64) return;
+    @compileError("Value type must be a float: f32, f64");
 }
 
 // Wrapper for expectApproxEqAbs for comparing float fields of a color
@@ -38,6 +49,10 @@ pub inline fn expectColorsApproxEqAbs(expected: anytype, actual: anytype, tolera
         };
         const eval = @field(expected, efield.name);
         const aval = @field(actual, afield.name);
-        try std.testing.expectApproxEqAbs(eval, aval, tolerance);
+        if (efield.type == u8) {
+            try std.testing.expectApproxEqAbs(@as(f32, @floatFromInt(eval)), @as(f32, @floatFromInt(aval)), tolerance);
+        } else {
+            try std.testing.expectApproxEqAbs(eval, aval, tolerance);
+        }
     }
 }
