@@ -27,6 +27,15 @@ pub inline fn assertFloatType(comptime T: type) void {
     @compileError("Value type must be a float: f32, f64");
 }
 
+// Default to f32 when going from a u8 in RGB to float-only type
+pub inline fn rgbToFloatType(comptime T: type) type {
+    return switch (T) {
+        f32, f64 => T,
+        u8 => f32,
+        else => unreachable,
+    };
+}
+
 // Wrapper for expectApproxEqAbs for comparing float fields of a color
 pub inline fn expectColorsApproxEqAbs(expected: anytype, actual: anytype, tolerance: anytype) !void {
     const E = @TypeOf(expected);
@@ -49,10 +58,13 @@ pub inline fn expectColorsApproxEqAbs(expected: anytype, actual: anytype, tolera
         };
         const eval = @field(expected, efield.name);
         const aval = @field(actual, afield.name);
-        if (efield.type == u8) {
-            try std.testing.expectApproxEqAbs(@as(f32, @floatFromInt(eval)), @as(f32, @floatFromInt(aval)), tolerance);
-        } else {
-            try std.testing.expectApproxEqAbs(eval, aval, tolerance);
+
+        // Color fields could be u8, f32, f64, ?f32, or ?f64
+        switch (@typeInfo(efield.type)) {
+            .int => try std.testing.expectApproxEqAbs(@as(f32, @floatFromInt(eval)), @as(f32, @floatFromInt(aval)), tolerance),
+            .float => try std.testing.expectApproxEqAbs(eval, aval, tolerance),
+            .optional => try std.testing.expectApproxEqAbs(eval.?, aval.?, tolerance),
+            else => unreachable,
         }
     }
 }
