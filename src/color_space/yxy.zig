@@ -16,7 +16,7 @@ pub fn Yxy(comptime T: type) type {
 
         // Formula for Yxy -> XYZ conversion:
         // http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
-        pub fn toXyz(self: Self) @TypeOf(Xyz(T)) {
+        pub fn toXyz(self: Self) Xyz(T) {
             if (self.y == 0) {
                 return Xyz(T).init(0, 0, 0);
             }
@@ -32,7 +32,27 @@ pub fn Yxy(comptime T: type) type {
             return Xyz(T).init(X, self.y, Z);
         }
 
-        pub fn toSrgb(self: Self) @TypeOf(Srgb(T)) {
+        // Formula for XYZ -> Yxy conversion:
+        // http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
+        pub fn fromXyz(xyz: Xyz(T)) Self {
+            const sum = xyz.x + xyz.y + xyz.z;
+
+            if (sum == 0) {
+                return Yxy(T).init(0.0, 0.0, 0.0);
+            }
+
+            // Y (luma) remains the same as y
+
+            // x
+            const x = xyz.x / sum;
+
+            // y
+            const y = xyz.y / sum;
+
+            return Yxy(T).init(xyz.y, x, y);
+        }
+
+        pub fn toSrgb(self: Self) Srgb(T) {
             return self.toXyz().toSrgb();
         }
     };
