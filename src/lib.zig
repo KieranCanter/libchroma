@@ -32,7 +32,7 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
 
     // Short circuit the conversion if the type has a function named "to<Dest>()"
     const toDest_fn_name = "to" ++ @typeName(Dest);
-    if (@hasDecl(Src, toDest_fn_name)) {
+    if (std.meta.hasMethod(Src, toDest_fn_name)) {
         return @call(.auto, @field(Src, toDest_fn_name), .{src});
     }
 
