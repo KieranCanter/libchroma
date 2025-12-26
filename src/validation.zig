@@ -7,10 +7,10 @@ pub inline fn assertColorInterface(comptime T: type) void {
     comptime if (std.mem.endsWith(u8, @typeName(T), "Xyz(f32)") or std.mem.endsWith(u8, @typeName(T), "Xyz(f64)")) {
         return;
     };
-    comptime if (!@hasDecl(T, "toXyz")) {
+    comptime if (!std.meta.hasMethod(T, "toXyz")) {
         @compileError(@typeName(T) ++ " must define a `toXyz()` method");
     };
-    comptime if (!@hasDecl(T, "fromXyz")) {
+    comptime if (!std.meta.hasMethod(T, "fromXyz")) {
         @compileError(@typeName(T) ++ " must define a `fromXyz()` method");
     };
 }
