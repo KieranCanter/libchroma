@@ -1,5 +1,6 @@
 const std = @import("std");
 const validation = @import("../validation.zig");
+const color_formatter = @import("../color_formatter.zig");
 
 const Cmyk = @import("Cmyk.zig").Cmyk;
 const Hsi = @import("Hsi.zig").Hsi;
@@ -75,6 +76,19 @@ pub fn Srgb(comptime T: type) type {
 
         pub fn init(r: T, g: T, b: T) Self {
             return .{ .r = r, .g = g, .b = b };
+        }
+
+        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+            return color_formatter.ColorFormatter(Self).init(self, style);
+        }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+        }
+
+        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            const hex = self.toHex();
+            try writer.print("Srgb({s})({d}, {d}, {d}) #{X}", .{ @typeName(T), self.r, self.g, self.b, hex.value });
         }
 
         pub inline fn cast(self: Self, comptime U: type) Srgb(U) {
@@ -347,6 +361,9 @@ pub fn LinearSrgb(comptime T: type) type {
 
     return struct {
         const Self = @This();
+        pub const Backing = T;
+        const F = validation.rgbToFloatType(T);
+
         r: T,
         g: T,
         b: T,
@@ -355,20 +372,55 @@ pub fn LinearSrgb(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        pub fn toXyz(self: Self) Xyz(T) {
-            return Xyz(T).init(
-                self.r * SRGB_TO_XYZ[0][0] + self.g * SRGB_TO_XYZ[0][1] + self.b * SRGB_TO_XYZ[0][2],
-                self.r * SRGB_TO_XYZ[1][0] + self.g * SRGB_TO_XYZ[1][1] + self.b * SRGB_TO_XYZ[1][2],
-                self.r * SRGB_TO_XYZ[2][0] + self.g * SRGB_TO_XYZ[2][1] + self.b * SRGB_TO_XYZ[2][2],
+        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+            return color_formatter.ColorFormatter(Self).init(self, style);
+        }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+        }
+
+        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("LinearSrgb({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
+        }
+
+        pub inline fn cast(self: Self, comptime U: type) Srgb(U) {
+            const r = rgbCast(self.r, U);
+            const g = rgbCast(self.g, U);
+            const b = rgbCast(self.b, U);
+            return LinearSrgb(U).init(r, g, b);
+        }
+
+        pub fn toXyz(self: Self) Xyz(F) {
+            var linear: LinearSrgb(F) = undefined;
+            if (T != F) {
+                linear = self.cast(F);
+            } else {
+                linear = self;
+            }
+
+            return Xyz(F).init(
+                linear.r * @as(F, SRGB_TO_XYZ[0][0]) + linear.g * @as(F, SRGB_TO_XYZ[0][1]) + linear.b * @as(F, SRGB_TO_XYZ[0][2]),
+                linear.r * @as(F, SRGB_TO_XYZ[1][0]) + linear.g * @as(F, SRGB_TO_XYZ[1][1]) + linear.b * @as(F, SRGB_TO_XYZ[1][2]),
+                linear.r * @as(F, SRGB_TO_XYZ[2][0]) + linear.g * @as(F, SRGB_TO_XYZ[2][1]) + linear.b * @as(F, SRGB_TO_XYZ[2][2]),
             );
         }
 
-        pub fn fromXyz(xyz: Xyz(T)) Self {
-            return Self.init(
-                xyz.x * XYZ_TO_SRGB[0][0] + xyz.y * XYZ_TO_SRGB[0][1] + xyz.z * XYZ_TO_SRGB[0][2],
-                xyz.x * XYZ_TO_SRGB[1][0] + xyz.y * XYZ_TO_SRGB[1][1] + xyz.z * XYZ_TO_SRGB[1][2],
-                xyz.x * XYZ_TO_SRGB[2][0] + xyz.y * XYZ_TO_SRGB[2][1] + xyz.z * XYZ_TO_SRGB[2][2],
-            );
+        pub fn fromXyz(xyz: anytype) Self {
+            const U = @TypeOf(xyz).Backing;
+
+            const lin_r = xyz.x * @as(U, XYZ_TO_SRGB[0][0]) + xyz.y * @as(U, XYZ_TO_SRGB[0][1]) + xyz.z * @as(U, XYZ_TO_SRGB[0][2]);
+            const lin_g = xyz.x * @as(U, XYZ_TO_SRGB[1][0]) + xyz.y * @as(U, XYZ_TO_SRGB[1][1]) + xyz.z * @as(U, XYZ_TO_SRGB[1][2]);
+            const lin_b = xyz.x * @as(U, XYZ_TO_SRGB[2][0]) + xyz.y * @as(U, XYZ_TO_SRGB[2][1]) + xyz.z * @as(U, XYZ_TO_SRGB[2][2]);
+
+            const linear = LinearSrgb(U).init(lin_r, lin_g, lin_b);
+
+            // Cast from backing type of Xyz(U) to backing type of LinearSrgb(T)
+            const r = rgbCast(linear.r, T);
+            const g = rgbCast(linear.g, T);
+            const b = rgbCast(linear.b, T);
+
+            return LinearSrgb(T).init(r, g, b);
         }
 
         pub fn toSrgb(self: Self) Srgb(T) {
@@ -412,6 +464,18 @@ pub const HexSrgb = struct {
 
     value: u24,
 
+    pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+        return color_formatter.ColorFormatter(Self).init(self, style);
+    }
+
+    pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.print("({x})", .{self.value});
+    }
+
+    pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.print("HexSrgb(#{X})", .{self.value});
+    }
+
     fn parseHexU8(r: u8, g: u8, b: u8) u24 {
         const byte0 = @as(u24, @intCast(r)) << 16;
         const byte1 = @as(u16, @intCast(g)) << 8;
@@ -419,18 +483,18 @@ pub const HexSrgb = struct {
         return byte0 | byte1 | byte2;
     }
 
-    fn parseNibble(char: u8) u8 {
+    fn parseNibble(char: u8) SrgbError!u8 {
         return switch (char) {
             '0'...'9' => char - '0',
             'a'...'f' => char - 'a' + 10,
             'A'...'F' => char - 'A' + 10,
-            else => @panic("Invalid hex digit"),
+            else => return SrgbError.InvalidHexString,
         };
     }
 
-    fn parseByte(byte: []const u8) u8 {
-        const nib_left = parseNibble(byte[0]) << 4;
-        const nib_right = parseNibble(byte[1]);
+    fn parseByte(byte: []const u8) SrgbError!u8 {
+        const nib_left = try parseNibble(byte[0]) << 4;
+        const nib_right = try parseNibble(byte[1]);
         return nib_left | nib_right;
     }
 
@@ -445,9 +509,9 @@ pub const HexSrgb = struct {
             return SrgbError.InvalidHexString;
         }
 
-        const byte0: u24 = @as(u24, @intCast(parseByte(hex_str[0..2]))) << 16;
-        const byte1: u24 = @as(u16, @intCast(parseByte(hex_str[2..4]))) << 8;
-        const byte2: u24 = parseByte(hex_str[4..6]);
+        const byte0: u24 = @as(u24, @intCast(try parseByte(hex_str[0..2]))) << 16;
+        const byte1: u24 = @as(u16, @intCast(try parseByte(hex_str[2..4]))) << 8;
+        const byte2: u24 = try parseByte(hex_str[4..6]);
 
         return byte0 | byte1 | byte2;
     }
@@ -526,6 +590,68 @@ pub const HexSrgb = struct {
 // //////////////////////// //
 // ////////  Srgb  //////// //
 // //////////////////////// //
+
+test "Srgb formatting" {
+    const alloc = std.testing.allocator;
+
+    const srgb_u8 = Srgb(u8).init(200, 100, 50);
+    var exp_format: []const u8 = "(200, 100, 50)";
+    var exp_default: []const u8 = "(200, 100, 50)";
+    var exp_raw: []const u8 = "Srgb(u8).{ .r = 200, .g = 100, .b = 50 }";
+    var exp_pretty: []const u8 = "Srgb(u8)(200, 100, 50) #C86432";
+    var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8});
+    var act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.default)});
+    var act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.raw)});
+    var act_pretty: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.pretty)});
+    try std.testing.expectEqualStrings(exp_format, act_format);
+    try std.testing.expectEqualStrings(exp_default, act_default);
+    try std.testing.expectEqualStrings(exp_raw, act_raw);
+    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+
+    alloc.free(act_format);
+    alloc.free(act_default);
+    alloc.free(act_raw);
+    alloc.free(act_pretty);
+
+    const srgb_f32 = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    exp_format = "(0.784, 0.392, 0.196)";
+    exp_default = "(0.784, 0.392, 0.196)";
+    exp_raw = "Srgb(f32).{ .r = 0.784, .g = 0.392, .b = 0.196 }";
+    exp_pretty = "Srgb(f32)(0.784, 0.392, 0.196) #C86432";
+    act_format = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32});
+    act_default = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.default)});
+    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.raw)});
+    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.pretty)});
+    try std.testing.expectEqualStrings(exp_format, act_format);
+    try std.testing.expectEqualStrings(exp_default, act_default);
+    try std.testing.expectEqualStrings(exp_raw, act_raw);
+    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+
+    alloc.free(act_format);
+    alloc.free(act_default);
+    alloc.free(act_raw);
+    alloc.free(act_pretty);
+
+    const srgb_f64 = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    exp_format = "(0.784313, 0.392156, 0.196078)";
+    exp_default = "(0.784313, 0.392156, 0.196078)";
+    exp_raw = "Srgb(f64).{ .r = 0.784313, .g = 0.392156, .b = 0.196078 }";
+    exp_pretty = "Srgb(f64)(0.784313, 0.392156, 0.196078) #C86432";
+    act_format = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64});
+    act_default = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.default)});
+    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.raw)});
+    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.pretty)});
+    try std.testing.expectEqualStrings(exp_format, act_format);
+    try std.testing.expectEqualStrings(exp_default, act_default);
+    try std.testing.expectEqualStrings(exp_raw, act_raw);
+    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+
+    alloc.free(act_format);
+    alloc.free(act_default);
+    alloc.free(act_raw);
+    alloc.free(act_pretty);
+}
+
 test "Srgb(u8) toLinear" {
     const tolerance: u8 = 1;
 
@@ -1121,6 +1247,67 @@ test "Srgb(f64) toHwb" {
 // //////////////////////// //
 // /////  LinearSrgb  ///// //
 // //////////////////////// //
+test "LinearSrgb formatting" {
+    const alloc = std.testing.allocator;
+
+    const linear_u8 = LinearSrgb(u8).init(200, 100, 50);
+    var exp_format: []const u8 = "(200, 100, 50)";
+    var exp_default: []const u8 = "(200, 100, 50)";
+    var exp_raw: []const u8 = "LinearSrgb(u8).{ .r = 200, .g = 100, .b = 50 }";
+    var exp_pretty: []const u8 = "LinearSrgb(u8)(200, 100, 50)";
+    var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8});
+    var act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8.formatter(.default)});
+    var act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8.formatter(.raw)});
+    var act_pretty: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8.formatter(.pretty)});
+    try std.testing.expectEqualStrings(exp_format, act_format);
+    try std.testing.expectEqualStrings(exp_default, act_default);
+    try std.testing.expectEqualStrings(exp_raw, act_raw);
+    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+
+    alloc.free(act_format);
+    alloc.free(act_default);
+    alloc.free(act_raw);
+    alloc.free(act_pretty);
+
+    const linear_f32 = LinearSrgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
+    exp_format = "(0.784, 0.392, 0.196)";
+    exp_default = "(0.784, 0.392, 0.196)";
+    exp_raw = "LinearSrgb(f32).{ .r = 0.784, .g = 0.392, .b = 0.196 }";
+    exp_pretty = "LinearSrgb(f32)(0.784, 0.392, 0.196)";
+    act_format = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32});
+    act_default = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32.formatter(.default)});
+    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32.formatter(.raw)});
+    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32.formatter(.pretty)});
+    try std.testing.expectEqualStrings(exp_format, act_format);
+    try std.testing.expectEqualStrings(exp_default, act_default);
+    try std.testing.expectEqualStrings(exp_raw, act_raw);
+    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+
+    alloc.free(act_format);
+    alloc.free(act_default);
+    alloc.free(act_raw);
+    alloc.free(act_pretty);
+
+    const linear_f64 = LinearSrgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
+    exp_format = "(0.784313, 0.392156, 0.196078)";
+    exp_default = "(0.784313, 0.392156, 0.196078)";
+    exp_raw = "LinearSrgb(f64).{ .r = 0.784313, .g = 0.392156, .b = 0.196078 }";
+    exp_pretty = "LinearSrgb(f64)(0.784313, 0.392156, 0.196078)";
+    act_format = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64});
+    act_default = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64.formatter(.default)});
+    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64.formatter(.raw)});
+    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64.formatter(.pretty)});
+    try std.testing.expectEqualStrings(exp_format, act_format);
+    try std.testing.expectEqualStrings(exp_default, act_default);
+    try std.testing.expectEqualStrings(exp_raw, act_raw);
+    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+
+    alloc.free(act_format);
+    alloc.free(act_default);
+    alloc.free(act_raw);
+    alloc.free(act_pretty);
+}
+
 test "LinearSrgb(u8) toSrgb" {
     const tolerance: u8 = 1;
 
@@ -1196,6 +1383,29 @@ test "LinearSrgb(f64) toSrgb" {
 // /////////////////////// //
 // //////  HexSrgb  ////// //
 // /////////////////////// //
+test "HexSrgb formatting" {
+    const alloc = std.testing.allocator;
+
+    const hex = HexSrgb.initFromU8(200, 100, 50);
+    const exp_format: []const u8 = "(c86432)";
+    const exp_default: []const u8 = "(c86432)";
+    const exp_raw: []const u8 = "HexSrgb.{ .value = 13132850 }";
+    const exp_pretty: []const u8 = "HexSrgb(#C86432)";
+    const act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex});
+    const act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex.formatter(.default)});
+    const act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex.formatter(.raw)});
+    const act_pretty: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex.formatter(.pretty)});
+    try std.testing.expectEqualStrings(exp_format, act_format);
+    try std.testing.expectEqualStrings(exp_default, act_default);
+    try std.testing.expectEqualStrings(exp_raw, act_raw);
+    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+
+    alloc.free(act_format);
+    alloc.free(act_default);
+    alloc.free(act_raw);
+    alloc.free(act_pretty);
+}
+
 test "HexSrgb initFromString" {
     var hex = try HexSrgb.initFromString("C86432");
     var expected: u24 = 0xc86432;
