@@ -2,7 +2,7 @@ const assertFloatType = @import("../validation.zig").assertFloatType;
 
 const Hsl = @import("hsl.zig").Hsl;
 const Hsv = @import("hsv.zig").Hsv;
-const Srgb = @import("srgb.zig").Srgb;
+const Srgb = @import("rgb/srgb.zig").Srgb;
 const Xyz = @import("xyz.zig").Xyz;
 
 /// Type to hold an HSI value.

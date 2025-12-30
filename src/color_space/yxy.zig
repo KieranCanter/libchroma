@@ -1,6 +1,6 @@
 const assertFloatType = @import("../validation.zig").assertFloatType;
 
-const Srgb = @import("srgb.zig").Srgb;
+const Srgb = @import("rgb/srgb.zig").Srgb;
 const Xyz = @import("xyz.zig").Xyz;
 
 /// Type to hold a Yxy value.
