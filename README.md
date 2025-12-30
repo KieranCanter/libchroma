@@ -1,2 +1,2 @@
 # libchroma
-Library for color conversion across various color spaces. Compatible with your favorite language as a stable C lib.
+Library for color conversion across various color spaces. Compatible with your favorite language, exposing a C ABI-stable interface.
