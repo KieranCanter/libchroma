@@ -4,36 +4,61 @@ const Xyz = @import("color_space/xyz.zig").Xyz;
 
 // Color interface validation
 pub inline fn assertColorInterface(comptime T: type) void {
-    comptime if (std.mem.endsWith(u8, @typeName(T), "Xyz(f32)") or std.mem.endsWith(u8, @typeName(T), "Xyz(f64)")) {
-        return;
-    };
-    comptime if (!std.meta.hasMethod(T, "toXyz")) {
-        @compileError(@typeName(T) ++ " must define a `toXyz()` method");
-    };
-    comptime if (!std.meta.hasMethod(T, "fromXyz")) {
-        @compileError(@typeName(T) ++ " must define a `fromXyz()` method");
-    };
+    comptime {
+        const color_space_name = colorSpaceName(T);
+        if (std.mem.containsAtLeast(u8, color_space_name, 1, "Xyz")) {
+            return;
+        }
+        if (!std.meta.hasMethod(T, "toXyz")) {
+            @compileError(color_space_name ++ " must define a `toXyz()` method");
+        }
+        if (!std.meta.hasMethod(T, "fromXyz")) {
+            @compileError(color_space_name ++ " must define a `fromXyz()` method");
+        }
+    }
 }
 
 // RGB type validation
 pub inline fn assertRgbType(comptime T: type) void {
-    comptime if (T == u8 or T == f32 or T == f64) return;
-    @compileError("RGB value type must be one of: u8, f32, f64");
+    comptime switch (@typeInfo(T)) {
+        .int => {
+            if (T == u8) {
+                return;
+            } else {
+                @compileError("RGB value type must be u8 or a float type");
+            }
+        },
+        .float => return,
+        else => @compileError("RGB value type must be u8 or a float type"),
+    };
 }
 
 // Float type validation
 pub inline fn assertFloatType(comptime T: type) void {
-    comptime if (T == f32 or T == f64) return;
-    @compileError("Value type must be a float: f32, f64");
+    comptime switch (@typeInfo(T)) {
+        .float => return,
+        else => @compileError("Value type must be a float type"),
+    };
 }
 
 // Default to f32 when going from a u8 in RGB to float-only type
 pub inline fn rgbToFloatType(comptime T: type) type {
-    return switch (T) {
-        f32, f64 => T,
-        u8 => f32,
+    return switch (@typeInfo(T)) {
+        .float => T,
+        .int => f32,
         else => unreachable,
     };
+}
+
+pub inline fn colorSpaceName(comptime T: type) []const u8 {
+    comptime {
+        const maybe_last_dot = std.mem.lastIndexOfScalar(u8, @typeName(T), '.');
+        if (maybe_last_dot) |last_dot| {
+            return @typeName(T)[last_dot + 1 ..];
+        } else {
+            return @typeName(T);
+        }
+    }
 }
 
 // Wrapper for expectApproxEqAbs for comparing float fields of a color
