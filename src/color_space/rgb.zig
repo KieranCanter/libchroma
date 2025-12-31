@@ -131,14 +131,42 @@ pub const HexRgb = struct {
     }
 };
 
+pub fn linearToXyz(matrix: [3][3]f32, linear: anytype) Xyz(rgbToFloatType(@TypeOf(linear).Backing)) {
+    const F = rgbToFloatType(@TypeOf(linear).Backing);
+    const lin_r = rgbCast(F, linear.r);
+    const lin_g = rgbCast(F, linear.g);
+    const lin_b = rgbCast(F, linear.b);
+
+    return Xyz(F).init(
+        lin_r * @as(F, matrix[0][0]) + lin_g * @as(F, matrix[0][1]) + lin_b * @as(F, matrix[0][2]),
+        lin_r * @as(F, matrix[1][0]) + lin_g * @as(F, matrix[1][1]) + lin_b * @as(F, matrix[1][2]),
+        lin_r * @as(F, matrix[2][0]) + lin_g * @as(F, matrix[2][1]) + lin_b * @as(F, matrix[2][2]),
+    );
+}
+
+pub fn linearFromXyz(comptime LinearRgb: type, matrix: [3][3]f32, xyz: anytype) LinearRgb {
+    const F = rgbToFloatType(@TypeOf(xyz).Backing);
+    const T = LinearRgb.Backing;
+
+    const lin_r = xyz.x * @as(F, matrix[0][0]) + xyz.y * @as(F, matrix[0][1]) + xyz.z * @as(F, matrix[0][2]);
+    const lin_g = xyz.x * @as(F, matrix[1][0]) + xyz.y * @as(F, matrix[1][1]) + xyz.z * @as(F, matrix[1][2]);
+    const lin_b = xyz.x * @as(F, matrix[2][0]) + xyz.y * @as(F, matrix[2][1]) + xyz.z * @as(F, matrix[2][2]);
+
+    return LinearRgb.init(
+        rgbCast(T, lin_r),
+        rgbCast(T, lin_g),
+        rgbCast(T, lin_b),
+    );
+}
+
 // Formula for sRGB -> CMYK conversion:
 // https://www.101computing.net/cmyk-to-rgb-conversion-algorithm/
 pub fn toCmyk(rgb: anytype) Cmyk(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const F = rgbToFloatType(@TypeOf(rgb).Backing);
 
-    const r = rgbCast(rgb.r, F);
-    const g = rgbCast(rgb.g, F);
-    const b = rgbCast(rgb.b, F);
+    const r = rgbCast(F, rgb.r);
+    const g = rgbCast(F, rgb.g);
+    const b = rgbCast(F, rgb.b);
 
     const k = 1.0 - @max(r, g, b);
     if (k == 1.0) { // Avoid division by 0
@@ -156,9 +184,9 @@ pub fn toCmyk(rgb: anytype) Cmyk(rgbToFloatType(@TypeOf(rgb).Backing)) {
 pub fn toHsi(rgb: anytype) Hsi(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const F = rgbToFloatType(@TypeOf(rgb).Backing);
 
-    const r = rgbCast(rgb.r, F);
-    const g = rgbCast(rgb.g, F);
-    const b = rgbCast(rgb.b, F);
+    const r = rgbCast(F, rgb.r);
+    const g = rgbCast(F, rgb.g);
+    const b = rgbCast(F, rgb.b);
 
     const xmax = @max(r, g, b);
     const xmin = @min(r, g, b);
@@ -187,9 +215,9 @@ pub fn toHsi(rgb: anytype) Hsi(rgbToFloatType(@TypeOf(rgb).Backing)) {
 pub fn toHsl(rgb: anytype) Hsl(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const F = rgbToFloatType(@TypeOf(rgb).Backing);
 
-    const r = rgbCast(rgb.r, F);
-    const g = rgbCast(rgb.g, F);
-    const b = rgbCast(rgb.b, F);
+    const r = rgbCast(F, rgb.r);
+    const g = rgbCast(F, rgb.g);
+    const b = rgbCast(F, rgb.b);
 
     const xmax = @max(r, g, b);
     const xmin = @min(r, g, b);
@@ -218,9 +246,9 @@ pub fn toHsl(rgb: anytype) Hsl(rgbToFloatType(@TypeOf(rgb).Backing)) {
 pub fn toHsv(rgb: anytype) Hsv(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const F = rgbToFloatType(@TypeOf(rgb).Backing);
 
-    const r = rgbCast(rgb.r, F);
-    const g = rgbCast(rgb.g, F);
-    const b = rgbCast(rgb.b, F);
+    const r = rgbCast(F, rgb.r);
+    const g = rgbCast(F, rgb.g);
+    const b = rgbCast(F, rgb.b);
 
     // Value
     const xmax = @max(r, g, b);
@@ -247,9 +275,9 @@ pub fn toHsv(rgb: anytype) Hsv(rgbToFloatType(@TypeOf(rgb).Backing)) {
 pub fn toHwb(rgb: anytype) Hwb(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const F = rgbToFloatType(@TypeOf(rgb).Backing);
 
-    const r = rgbCast(rgb.r, F);
-    const g = rgbCast(rgb.g, F);
-    const b = rgbCast(rgb.b, F);
+    const g = toFloat(F, rgb.g);
+    const r = toFloat(F, rgb.r);
+    const b = toFloat(F, rgb.b);
 
     const xmax = @max(r, g, b);
     const xmin = @min(r, g, b);
@@ -325,30 +353,47 @@ fn computeHue(comptime F: type, r: F, g: F, b: F, xmax: F, xmin: F) F {
     return h;
 }
 
-// Casting an RGB type (u8 or float)
+// Convert val of backing type to a float value
+// F: destination float type
 // val: a u8 or float value
+pub fn toFloat(comptime F: type, val: anytype) F {
+    return switch (@typeInfo(@TypeOf(val))) {
+        .int => @as(F, @floatFromInt(val)) / 255.0,
+        .float => val,
+        else => unreachable,
+    };
+}
+
+// Convert to backing type T from a float val
+// T: destination type (u8 or float)
+// val: float value
+pub fn fromFloat(comptime T: type, val: anytype) T {
+    return switch (@typeInfo(T)) {
+        .int => @as(u8, @intFromFloat(@round(val * 255.0))),
+        .float => val,
+        else => unreachable,
+    };
+}
+
+// Casting an RGB type (u8 or float)
 // U: the destination type (u8 or float)
-pub fn rgbCast(val: anytype, comptime U: type) U {
+// val: a u8 or float value
+pub fn rgbCast(comptime U: type, val: anytype) U {
     const T = @TypeOf(val);
     validation.assertRgbType(U);
 
+    // For integers, can only occur if T == U == u8.
     if (T == U) {
         return val;
     }
 
-    // At this point, T and U have already been verified to be valid backing types. The only valid
-    // integer type T or U could be is u8, so we can implicitly cast to it.
-    return switch (@typeInfo(T)) {
-        .float => switch (@typeInfo(U)) {
-            .int => @as(u8, @intFromFloat(@round(val * 255))),
-            .float => @as(U, @floatCast(val)),
-            else => unreachable,
-        },
-        .int => switch (@typeInfo(U)) {
-            .int => val,
-            .float => @as(U, @floatFromInt(val)),
-            else => unreachable,
-        },
+    // At this point, T and U have already been verified to be valid backing types. If the
+    // destination type U is an integer (u8), we can assume the source type T of `val` is a float.
+    // If T was u8, it would have returned in the conditional above, so we can safely call fromFloat
+    // on `val`.
+    return switch (@typeInfo(U)) {
+        .float => toFloat(U, val),
+        .int => fromFloat(U, val),
         else => unreachable,
     };
 }

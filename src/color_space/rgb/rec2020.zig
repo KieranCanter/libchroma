@@ -61,44 +61,12 @@ pub fn Rec2020(comptime T: type) type {
             try writer.print("Rec2020({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
         }
 
-        pub inline fn cast(self: Self, comptime U: type) Rec2020(U) {
-            const r = rgbCast(self.r, U);
-            const g = rgbCast(self.g, U);
-            const b = rgbCast(self.b, U);
-            return Rec2020(U).init(r, g, b);
-        }
-
         pub fn toXyz(self: Self) Xyz(F) {
-            var linear: LinearRec2020(F) = undefined;
-            if (T != F) {
-                linear = self.cast(F).toLinear();
-            } else {
-                linear = self.toLinear();
-            }
-
-            return Xyz(F).init(
-                linear.r * @as(F, REC2020_TO_XYZ[0][0]) + linear.g * @as(F, REC2020_TO_XYZ[0][1]) + linear.b * @as(F, REC2020_TO_XYZ[0][2]),
-                linear.r * @as(F, REC2020_TO_XYZ[1][0]) + linear.g * @as(F, REC2020_TO_XYZ[1][1]) + linear.b * @as(F, REC2020_TO_XYZ[1][2]),
-                linear.r * @as(F, REC2020_TO_XYZ[2][0]) + linear.g * @as(F, REC2020_TO_XYZ[2][1]) + linear.b * @as(F, REC2020_TO_XYZ[2][2]),
-            );
+            return self.toLinear().toXyz();
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            const U = @TypeOf(xyz).Backing;
-
-            const lin_r = xyz.x * @as(U, XYZ_TO_REC2020[0][0]) + xyz.y * @as(U, XYZ_TO_REC2020[0][1]) + xyz.z * @as(U, XYZ_TO_REC2020[0][2]);
-            const lin_g = xyz.x * @as(U, XYZ_TO_REC2020[1][0]) + xyz.y * @as(U, XYZ_TO_REC2020[1][1]) + xyz.z * @as(U, XYZ_TO_REC2020[1][2]);
-            const lin_b = xyz.x * @as(U, XYZ_TO_REC2020[2][0]) + xyz.y * @as(U, XYZ_TO_REC2020[2][1]) + xyz.z * @as(U, XYZ_TO_REC2020[2][2]);
-
-            const linear = LinearRec2020(U).init(lin_r, lin_g, lin_b);
-            const float_rec2020 = linear.toRec2020();
-
-            // Cast from backing type of Xyz(U) to backing type of Srgb(T)
-            const r = rgbCast(float_rec2020.r, T);
-            const g = rgbCast(float_rec2020.g, T);
-            const b = rgbCast(float_rec2020.b, T);
-
-            return Rec2020(T).init(r, g, b);
+            return LinearRec2020(T).fromXyz(xyz).toRec2020();
         }
 
         pub fn toLinear(self: Self) LinearRec2020(T) {
@@ -112,24 +80,13 @@ pub fn Rec2020(comptime T: type) type {
         // Rec. 2020 EOTF is the same as Rec. 1886, located in Annex 1:
         // https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.1886-0-201103-I!!PDF-E.pdf
         fn gammaToLinear(val: T) T {
-            var fl: F = switch (@typeInfo(T)) {
-                .int => @as(f32, @floatFromInt(val)) / 255,
-                .float => val,
-                else => unreachable,
-            };
-
-            var sign: F = 1;
-            if (fl < 0) {
-                sign = -1;
-            }
+            var fl = rgb.toFloat(F, val);
+            const sign: F = if (fl < 0) -1 else 1;
             const abs: F = fl * sign;
+
             fl = sign * std.math.pow(F, abs, 1.0 / 2.4);
 
-            return switch (@typeInfo(T)) {
-                .int => @as(u8, @intFromFloat(@round(fl * 255))),
-                .float => fl,
-                else => unreachable,
-            };
+            return rgb.fromFloat(T, fl);
         }
 
         pub fn toCmyk(self: Self) Cmyk(F) {
@@ -189,43 +146,18 @@ pub fn Rec2020Scene(comptime T: type) type {
         }
 
         pub inline fn cast(self: Self, comptime U: type) Rec2020Scene(U) {
-            const r = rgbCast(self.r, U);
-            const g = rgbCast(self.g, U);
-            const b = rgbCast(self.b, U);
+            const r = rgbCast(U, self.r);
+            const g = rgbCast(U, self.g);
+            const b = rgbCast(U, self.b);
             return Rec2020Scene(U).init(r, g, b);
         }
 
         pub fn toXyz(self: Self) Xyz(F) {
-            var linear: LinearRec2020(F) = undefined;
-            if (T != F) {
-                linear = self.cast(F).toLinear();
-            } else {
-                linear = self.toLinear();
-            }
-
-            return Xyz(F).init(
-                linear.r * @as(F, REC2020_TO_XYZ[0][0]) + linear.g * @as(F, REC2020_TO_XYZ[0][1]) + linear.b * @as(F, REC2020_TO_XYZ[0][2]),
-                linear.r * @as(F, REC2020_TO_XYZ[1][0]) + linear.g * @as(F, REC2020_TO_XYZ[1][1]) + linear.b * @as(F, REC2020_TO_XYZ[1][2]),
-                linear.r * @as(F, REC2020_TO_XYZ[2][0]) + linear.g * @as(F, REC2020_TO_XYZ[2][1]) + linear.b * @as(F, REC2020_TO_XYZ[2][2]),
-            );
+            return self.toLinear().toXyz();
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            const U = @TypeOf(xyz).Backing;
-
-            const lin_r = xyz.x * @as(U, XYZ_TO_REC2020[0][0]) + xyz.y * @as(U, XYZ_TO_REC2020[0][1]) + xyz.z * @as(U, XYZ_TO_REC2020[0][2]);
-            const lin_g = xyz.x * @as(U, XYZ_TO_REC2020[1][0]) + xyz.y * @as(U, XYZ_TO_REC2020[1][1]) + xyz.z * @as(U, XYZ_TO_REC2020[1][2]);
-            const lin_b = xyz.x * @as(U, XYZ_TO_REC2020[2][0]) + xyz.y * @as(U, XYZ_TO_REC2020[2][1]) + xyz.z * @as(U, XYZ_TO_REC2020[2][2]);
-
-            const linear = LinearRec2020(U).init(lin_r, lin_g, lin_b);
-            const float_rec2020scene = linear.toRec2020Scene();
-
-            // Cast from backing type of Xyz(U) to backing type of Srgb(T)
-            const r = rgbCast(float_rec2020scene.r, T);
-            const g = rgbCast(float_rec2020scene.g, T);
-            const b = rgbCast(float_rec2020scene.b, T);
-
-            return Rec2020Scene(T).init(r, g, b);
+            return LinearRec2020(T).fromXyz(xyz).toRec2020Scene();
         }
 
         pub fn toLinear(self: Self) LinearRec2020(T) {
@@ -239,20 +171,12 @@ pub fn Rec2020Scene(comptime T: type) type {
         // Rec. 2020 OETF is defined in Table 4:
         // https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.2020-2-201510-I!!PDF-E.pdf
         fn gammaToLinear(val: T) T {
-            var fl: F = switch (@typeInfo(T)) {
-                .int => @as(f32, @floatFromInt(val)) / 255,
-                .float => val,
-                else => unreachable,
-            };
+            var fl = rgb.toFloat(F, val);
+            const sign: F = if (fl < 0) -1 else 1;
+            const abs: F = fl * sign;
 
             const alpha: F = 1.09929682680944;
             const beta: F = 0.018053968510807;
-
-            var sign: F = 1;
-            if (fl < 0) {
-                sign = -1;
-            }
-            const abs: F = fl * sign;
 
             if (abs < beta) {
                 fl *= 4.5;
@@ -260,11 +184,7 @@ pub fn Rec2020Scene(comptime T: type) type {
                 fl = sign * (alpha * std.math.pow(F, abs, 0.45) - (alpha - 1));
             }
 
-            return switch (@typeInfo(T)) {
-                .int => @as(u8, @intFromFloat(@round(fl * 255))),
-                .float => fl,
-                else => unreachable,
-            };
+            return rgb.fromFloat(T, fl);
         }
 
         pub fn toCmyk(self: Self) Cmyk(F) {
@@ -322,43 +242,12 @@ pub fn LinearRec2020(comptime T: type) type {
             try writer.print("LinearRec2020({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
         }
 
-        pub inline fn cast(self: Self, comptime U: type) LinearRec2020(U) {
-            const r = rgbCast(self.r, U);
-            const g = rgbCast(self.g, U);
-            const b = rgbCast(self.b, U);
-            return LinearRec2020(U).init(r, g, b);
-        }
-
         pub fn toXyz(self: Self) Xyz(F) {
-            var linear: LinearRec2020(F) = undefined;
-            if (T != F) {
-                linear = self.cast(F);
-            } else {
-                linear = self;
-            }
-
-            return Xyz(F).init(
-                linear.r * @as(F, REC2020_TO_XYZ[0][0]) + linear.g * @as(F, REC2020_TO_XYZ[0][1]) + linear.b * @as(F, REC2020_TO_XYZ[0][2]),
-                linear.r * @as(F, REC2020_TO_XYZ[1][0]) + linear.g * @as(F, REC2020_TO_XYZ[1][1]) + linear.b * @as(F, REC2020_TO_XYZ[1][2]),
-                linear.r * @as(F, REC2020_TO_XYZ[2][0]) + linear.g * @as(F, REC2020_TO_XYZ[2][1]) + linear.b * @as(F, REC2020_TO_XYZ[2][2]),
-            );
+            return rgb.linearToXyz(REC2020_TO_XYZ, self);
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            const U = @TypeOf(xyz).Backing;
-
-            const lin_r = xyz.x * @as(U, XYZ_TO_REC2020[0][0]) + xyz.y * @as(U, XYZ_TO_REC2020[0][1]) + xyz.z * @as(U, XYZ_TO_REC2020[0][2]);
-            const lin_g = xyz.x * @as(U, XYZ_TO_REC2020[1][0]) + xyz.y * @as(U, XYZ_TO_REC2020[1][1]) + xyz.z * @as(U, XYZ_TO_REC2020[1][2]);
-            const lin_b = xyz.x * @as(U, XYZ_TO_REC2020[2][0]) + xyz.y * @as(U, XYZ_TO_REC2020[2][1]) + xyz.z * @as(U, XYZ_TO_REC2020[2][2]);
-
-            const linear = LinearRec2020(U).init(lin_r, lin_g, lin_b);
-
-            // Cast from backing type of Xyz(U) to backing type of LinearSrgb(T)
-            const r = rgbCast(linear.r, T);
-            const g = rgbCast(linear.g, T);
-            const b = rgbCast(linear.b, T);
-
-            return LinearRec2020(T).init(r, g, b);
+            return rgb.linearFromXyz(Self, XYZ_TO_REC2020, xyz);
         }
 
         pub fn toRec2020(self: Self) Rec2020(T) {
@@ -368,7 +257,7 @@ pub fn LinearRec2020(comptime T: type) type {
                 linearToGamma(self.b),
             );
         }
-        
+
         pub fn toRec2020Scene(self: Self) Rec2020Scene(T) {
             return Rec2020Scene(T).init(
                 linearToGammaOetf(self.r),
@@ -380,43 +269,24 @@ pub fn LinearRec2020(comptime T: type) type {
         // Rec. 2020 EOTF is the same as Rec. 1886, located in Annex 1:
         // https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.1886-0-201103-I!!PDF-E.pdf
         fn linearToGamma(val: T) T {
-            var fl: F = switch (@typeInfo(T)) {
-                .int => @as(f32, @floatFromInt(val)) / 255,
-                .float => val,
-                else => unreachable,
-            };
-
-            var sign: F = 1;
-            if (fl < 0) {
-                sign = -1;
-            }
+            var fl = rgb.toFloat(F, val);
+            const sign: F = if (fl < 0) -1 else 1;
             const abs: F = fl * sign;
+
             fl = sign * std.math.pow(F, abs, 2.4);
 
-            return switch (@typeInfo(T)) {
-                .int => @as(u8, @intFromFloat(@round(fl * 255))),
-                .float => fl,
-                else => unreachable,
-            };
+            return rgb.fromFloat(T, fl);
         }
 
         // Rec. 2020 OETF is defined in Table 4:
         // https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.2020-2-201510-I!!PDF-E.pdf
         fn linearToGammaOetf(val: T) T {
-            var fl: F = switch (@typeInfo(T)) {
-                .int => @as(f32, @floatFromInt(val)) / 255,
-                .float => val,
-                else => unreachable,
-            };
+            var fl = rgb.toFloat(F, val);
+            const sign: F = if (fl < 0) -1 else 1;
+            const abs: F = fl * sign;
 
             const alpha: F = 1.09929682680944;
             const beta: F = 0.018053968510807;
-
-            var sign: F = 1;
-            if (fl < 0) {
-                sign = -1;
-            }
-            const abs: F = fl * sign;
 
             if (abs <= beta * 4.5) {
                 fl /= 4.5;
@@ -424,11 +294,7 @@ pub fn LinearRec2020(comptime T: type) type {
                 fl = sign * std.math.pow(F, (abs + alpha - 1) / alpha, 1.0 / 0.45);
             }
 
-            return switch (@typeInfo(T)) {
-                .int => @as(u8, @intFromFloat(@round(fl * 255))),
-                .float => fl,
-                else => unreachable,
-            };
+            return rgb.fromFloat(T, fl);
         }
     };
 }

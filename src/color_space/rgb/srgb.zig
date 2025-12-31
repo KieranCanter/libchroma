@@ -64,44 +64,12 @@ pub fn Srgb(comptime T: type) type {
             try writer.print("Srgb({s})({d}, {d}, {d}) #{X}", .{ @typeName(T), self.r, self.g, self.b, hex.value });
         }
 
-        pub inline fn cast(self: Self, comptime U: type) Srgb(U) {
-            const r = rgbCast(self.r, U);
-            const g = rgbCast(self.g, U);
-            const b = rgbCast(self.b, U);
-            return Srgb(U).init(r, g, b);
-        }
-
         pub fn toXyz(self: Self) Xyz(F) {
-            var linear: LinearSrgb(F) = undefined;
-            if (T != F) {
-                linear = self.cast(F).toLinear();
-            } else {
-                linear = self.toLinear();
-            }
-
-            return Xyz(F).init(
-                linear.r * @as(F, SRGB_TO_XYZ[0][0]) + linear.g * @as(F, SRGB_TO_XYZ[0][1]) + linear.b * @as(F, SRGB_TO_XYZ[0][2]),
-                linear.r * @as(F, SRGB_TO_XYZ[1][0]) + linear.g * @as(F, SRGB_TO_XYZ[1][1]) + linear.b * @as(F, SRGB_TO_XYZ[1][2]),
-                linear.r * @as(F, SRGB_TO_XYZ[2][0]) + linear.g * @as(F, SRGB_TO_XYZ[2][1]) + linear.b * @as(F, SRGB_TO_XYZ[2][2]),
-            );
+            return self.toLinear().toXyz();
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            const U = @TypeOf(xyz).Backing;
-
-            const lin_r = xyz.x * @as(U, XYZ_TO_SRGB[0][0]) + xyz.y * @as(U, XYZ_TO_SRGB[0][1]) + xyz.z * @as(U, XYZ_TO_SRGB[0][2]);
-            const lin_g = xyz.x * @as(U, XYZ_TO_SRGB[1][0]) + xyz.y * @as(U, XYZ_TO_SRGB[1][1]) + xyz.z * @as(U, XYZ_TO_SRGB[1][2]);
-            const lin_b = xyz.x * @as(U, XYZ_TO_SRGB[2][0]) + xyz.y * @as(U, XYZ_TO_SRGB[2][1]) + xyz.z * @as(U, XYZ_TO_SRGB[2][2]);
-
-            const linear = LinearSrgb(U).init(lin_r, lin_g, lin_b);
-            const float_srgb = linear.toSrgb();
-
-            // Cast from backing type of Xyz(U) to backing type of Srgb(T)
-            const r = rgbCast(float_srgb.r, T);
-            const g = rgbCast(float_srgb.g, T);
-            const b = rgbCast(float_srgb.b, T);
-
-            return Srgb(T).init(r, g, b);
+            return LinearSrgb(T).fromXyz(xyz).toSrgb();
         }
 
         pub fn toLinear(self: Self) LinearSrgb(T) {
@@ -115,16 +83,8 @@ pub fn Srgb(comptime T: type) type {
         // Formulae for sRGB <-> Linear conversions:
         // https://entropymine.com/imageworsener/srgbformula/
         fn gammaToLinear(val: T) T {
-            var fl: F = switch (@typeInfo(T)) {
-                .int => @as(f32, @floatFromInt(val)) / 255,
-                .float => val,
-                else => unreachable,
-            };
-
-            var sign: F = 1;
-            if (fl < 0) {
-                sign = -1;
-            }
+            var fl = rgb.toFloat(F, val);
+            const sign: F = if (fl < 0) -1 else 1;
             const abs: F = fl * sign;
 
             if (abs <= 0.04045) {
@@ -133,11 +93,7 @@ pub fn Srgb(comptime T: type) type {
                 fl = sign * std.math.pow(F, (abs + 0.055) / 1.055, 2.4);
             }
 
-            return switch (@typeInfo(T)) {
-                .int => @as(u8, @intFromFloat(@round(fl * 255))),
-                .float => fl,
-                else => unreachable,
-            };
+            return rgb.fromFloat(T, fl);
         }
 
         pub fn toCmyk(self: Self) Cmyk(F) {
@@ -199,43 +155,12 @@ pub fn LinearSrgb(comptime T: type) type {
             try writer.print("LinearSrgb({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
         }
 
-        pub inline fn cast(self: Self, comptime U: type) Srgb(U) {
-            const r = rgbCast(self.r, U);
-            const g = rgbCast(self.g, U);
-            const b = rgbCast(self.b, U);
-            return LinearSrgb(U).init(r, g, b);
-        }
-
         pub fn toXyz(self: Self) Xyz(F) {
-            var linear: LinearSrgb(F) = undefined;
-            if (T != F) {
-                linear = self.cast(F);
-            } else {
-                linear = self;
-            }
-
-            return Xyz(F).init(
-                linear.r * @as(F, SRGB_TO_XYZ[0][0]) + linear.g * @as(F, SRGB_TO_XYZ[0][1]) + linear.b * @as(F, SRGB_TO_XYZ[0][2]),
-                linear.r * @as(F, SRGB_TO_XYZ[1][0]) + linear.g * @as(F, SRGB_TO_XYZ[1][1]) + linear.b * @as(F, SRGB_TO_XYZ[1][2]),
-                linear.r * @as(F, SRGB_TO_XYZ[2][0]) + linear.g * @as(F, SRGB_TO_XYZ[2][1]) + linear.b * @as(F, SRGB_TO_XYZ[2][2]),
-            );
+            return rgb.linearToXyz(SRGB_TO_XYZ, self);
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            const U = @TypeOf(xyz).Backing;
-
-            const lin_r = xyz.x * @as(U, XYZ_TO_SRGB[0][0]) + xyz.y * @as(U, XYZ_TO_SRGB[0][1]) + xyz.z * @as(U, XYZ_TO_SRGB[0][2]);
-            const lin_g = xyz.x * @as(U, XYZ_TO_SRGB[1][0]) + xyz.y * @as(U, XYZ_TO_SRGB[1][1]) + xyz.z * @as(U, XYZ_TO_SRGB[1][2]);
-            const lin_b = xyz.x * @as(U, XYZ_TO_SRGB[2][0]) + xyz.y * @as(U, XYZ_TO_SRGB[2][1]) + xyz.z * @as(U, XYZ_TO_SRGB[2][2]);
-
-            const linear = LinearSrgb(U).init(lin_r, lin_g, lin_b);
-
-            // Cast from backing type of Xyz(U) to backing type of LinearSrgb(T)
-            const r = rgbCast(linear.r, T);
-            const g = rgbCast(linear.g, T);
-            const b = rgbCast(linear.b, T);
-
-            return LinearSrgb(T).init(r, g, b);
+            return rgb.linearFromXyz(Self, XYZ_TO_SRGB, xyz);
         }
 
         pub fn toSrgb(self: Self) Srgb(T) {
@@ -249,16 +174,8 @@ pub fn LinearSrgb(comptime T: type) type {
         // Formulae for sRGB <-> Linear conversions:
         // https://entropymine.com/imageworsener/srgbformula/
         fn linearToGamma(val: T) T {
-            var fl: F = switch (@typeInfo(T)) {
-                .int => @as(f32, @floatFromInt(val)) / 255,
-                .float => val,
-                else => unreachable,
-            };
-
-            var sign: F = 1;
-            if (fl < 0) {
-                sign = -1;
-            }
+            var fl = rgb.toFloat(F, val);
+            const sign: F = if (fl < 0) -1 else 1;
             const abs: F = fl * sign;
 
             if (fl <= 0.0031308) {
@@ -267,11 +184,7 @@ pub fn LinearSrgb(comptime T: type) type {
                 fl = sign * (1.055 * std.math.pow(F, abs, 1.0 / 2.4) - 0.055);
             }
 
-            return switch (@typeInfo(T)) {
-                .int => @as(u8, @intFromFloat(@round(fl * 255))),
-                .float => fl,
-                else => unreachable,
-            };
+            return rgb.fromFloat(T, fl);
         }
     };
 }
