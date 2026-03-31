@@ -5,6 +5,7 @@
 const std = @import("std");
 const validation = @import("validation.zig");
 
+const alpha = @import("alpha.zig");
 const cmyk = @import("color_space/cmyk.zig");
 const hsi = @import("color_space/hsi.zig");
 const hsl = @import("color_space/hsl.zig");
@@ -43,6 +44,9 @@ pub const LinearRec2020 = rgb.rec2020.LinearRec2020;
 
 pub const RgbError = rgb.RgbError;
 pub const ChromaError = error{OutOfRange};
+
+// Alpha wrapper
+pub const Alpha = alpha.Alpha;
 
 // Universal conversion
 pub fn convert(src: anytype, comptime Dest: type) Dest {
