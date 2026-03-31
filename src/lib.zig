@@ -43,20 +43,39 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     validation.assertColorInterface(Dest);
 
     // Short circuit the conversion if the source type has a function named "to<Dest>()"
-    const toDest_fn_name = "to" ++ validation.colorSpaceName(Dest);
+    const destName = comptime {
+        var destName = validation.colorSpaceName(Dest);
+        const maybe_open_paren = std.mem.indexOfScalar(u8, destName, '(');
+        if (maybe_open_paren) |open_paren| {
+            destName = destName[0..open_paren];
+        }
+        return destName;
+    };
+    const toDest_fn_name = "to" ++ destName;
     if (std.meta.hasMethod(Src, toDest_fn_name)) {
+        std.debug.print("Calling {s}()\n", .{toDest_fn_name});
         return @call(.auto, @field(Src, toDest_fn_name), .{src});
     }
 
     // Short circuit the conversion if the destination type has a function named "from<Src>()"
-    const fromSrc_fn_name = "from" ++ validation.colorSpaceName(Src);
+    const srcName = comptime {
+        var srcName = validation.colorSpaceName(Src);
+        const maybe_open_paren = std.mem.indexOfScalar(u8, srcName, '(');
+        if (maybe_open_paren) |open_paren| {
+            srcName = srcName[0..open_paren];
+        }
+        return srcName;
+    };
+    const fromSrc_fn_name = "from" ++ srcName;
     if (std.meta.hasMethod(Dest, fromSrc_fn_name)) {
+        std.debug.print("Calling {s}()\n", .{fromSrc_fn_name});
         return @call(.auto, @field(Dest, fromSrc_fn_name), .{src});
     }
 
     // Otherwise, go through canonical color space XYZ.
     // By the Color interface contract, every color space should implement a `toXyz()` function and
     // a `fromXyz()` function.
+    std.debug.print("Calling toXyz() and fromXyz()\n", .{});
     return Dest.fromXyz(src.toXyz());
 }
 
