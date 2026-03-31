@@ -87,7 +87,7 @@ pub fn Cmyk(comptime T: type) type {
 
         // Formula for CMYK -> sRGB conversion:
         // https://www.101computing.net/cmyk-to-rgb-conversion-algorithm/
-        pub fn toSrgb(self: Self) @TypeOf(Srgb(T)) {
+        pub fn toSrgb(self: Self) Srgb(T) {
             const r = (1 - self.c) * (1 - self.k);
             const g = (1 - self.m) * (1 - self.k);
             const b = (1 - self.y) * (1 - self.k);
