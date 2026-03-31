@@ -2,6 +2,7 @@ const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
 const color_formatter = @import("../color_formatter.zig");
 
+const Lch = @import("lch.zig").Lch;
 const Xyz = @import("xyz.zig").Xyz;
 
 /// Type to hold a CIE LAB value. ...
@@ -44,6 +45,11 @@ pub fn Lab(comptime T: type) type {
         pub fn fromXyz(xyz: anytype) Self {
             @compileLog("Implement Lab(T).fromXyz()");
             return Lab(T).init(xyz.x, xyz.y, xyz.z);
+        }
+
+        pub fn toLch(self: Self) Lch(T) {
+            @compileLog("Implement Lab(T).toLch()");
+            return Lch(T).init(self.l, self.a, self.b);
         }
     };
 }

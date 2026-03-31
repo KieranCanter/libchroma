@@ -12,6 +12,9 @@ pub inline fn assertColorInterface(comptime T: type) void {
         if (!std.meta.hasMethod(T, "fromXyz")) {
             @compileError(color_space_name ++ " must define a `fromXyz()` method");
         }
+        if (!@hasDecl(T, "Backing")) {
+            @compileError(color_space_name ++ " must expose its backing type in a field `pub const Backing = T`");
+        }
     }
 }
 
