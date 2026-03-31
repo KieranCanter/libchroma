@@ -382,7 +382,7 @@ test "Srgb(f64) toXyz" {
     const tolerance = 0.000002;
 
     var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = Xyz(f64).init(0.289550, 0.216274, 0.056667);
+    var expected = Xyz(f64).init(0.289514, 0.216258, 0.056673);
     var actual = srgb.toXyz();
     try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
@@ -392,12 +392,12 @@ test "Srgb(f64) toXyz" {
     try std.testing.expectEqual(expected, actual);
 
     srgb = Srgb(f64).init(1, 1, 1);
-    expected = Xyz(f64).init(0.950470, 1.000000, 1.088830);
+    expected = Xyz(f64).init(0.950456, 1.000000, 1.089058);
     actual = srgb.toXyz();
     try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = Xyz(f64).init(0.214573, 0.416657, 0.093935);
+    expected = Xyz(f64).init(0.214578, 0.416667, 0.093942);
     actual = srgb.toXyz();
     try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
@@ -407,9 +407,9 @@ test "Srgb(f32) fromXyz" {
     const tol64 = 0.000002;
 
     var xyz32 = Xyz(f32).init(0.289, 0.216, 0.056);
-    var xyz64 = Xyz(f64).init(0.289550, 0.216274, 0.056667);
+    var xyz64 = Xyz(f64).init(0.289514, 0.216258, 0.056673);
     var expected32 = Srgb(f32).init(0.784, 0.392, 0.194); // (200, 100, 50)
-    var expected64 = Srgb(f32).init(0.784314, 0.392155, 0.196078); // (200, 100, 50)
+    var expected64 = Srgb(f32).init(0.784312, 0.392158, 0.196078); // (200, 100, 50)
     var actual32 = Srgb(f32).fromXyz(xyz32);
     var actual64 = Srgb(f32).fromXyz(xyz64);
     try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
@@ -425,7 +425,7 @@ test "Srgb(f32) fromXyz" {
     try std.testing.expectEqual(expected64, actual64);
 
     xyz32 = Xyz(f32).init(0.950, 1.000, 1.089);
-    xyz64 = Xyz(f64).init(0.950470, 1.000000, 1.088830);
+    xyz64 = Xyz(f64).init(0.950456, 1.000000, 1.089058);
     expected32 = Srgb(f32).init(1, 1, 1);
     expected64 = Srgb(f32).init(1, 1, 1);
     actual32 = Srgb(f32).fromXyz(xyz32);
@@ -434,9 +434,9 @@ test "Srgb(f32) fromXyz" {
     try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
 
     xyz32 = Xyz(f32).init(0.214, 0.417, 0.093);
-    xyz64 = Xyz(f64).init(0.214573, 0.416657, 0.093935);
+    xyz64 = Xyz(f64).init(0.214578, 0.416667, 0.093942);
     expected32 = Srgb(f32).init(0.071, 0.785, 0.172); // (22, 200, 45)
-    expected64 = Srgb(f32).init(0.086287, 0.784312, 0.176471); // (22, 200, 45)
+    expected64 = Srgb(f32).init(0.086278, 0.784313, 0.176468); // (22, 200, 45)
     actual32 = Srgb(f32).fromXyz(xyz32);
     actual64 = Srgb(f32).fromXyz(xyz64);
     try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
@@ -448,9 +448,9 @@ test "Srgb(f64) fromXyz" {
     const tol64 = 0.000002;
 
     var xyz32 = Xyz(f32).init(0.289, 0.216, 0.056);
-    var xyz64 = Xyz(f64).init(0.289550, 0.216274, 0.056667);
+    var xyz64 = Xyz(f64).init(0.289514, 0.216258, 0.056673);
     var expected32 = Srgb(f64).init(0.784, 0.392, 0.194); // (200, 100, 50)
-    var expected64 = Srgb(f64).init(0.784314, 0.392155, 0.196078); // (200, 100, 50)
+    var expected64 = Srgb(f64).init(0.784312, 0.392158, 0.196078); // (200, 100, 50)
     var actual32 = Srgb(f64).fromXyz(xyz32);
     var actual64 = Srgb(f64).fromXyz(xyz64);
     try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
@@ -466,7 +466,7 @@ test "Srgb(f64) fromXyz" {
     try std.testing.expectEqual(expected64, actual64);
 
     xyz32 = Xyz(f32).init(0.950, 1.000, 1.089);
-    xyz64 = Xyz(f64).init(0.950470, 1.000000, 1.088830);
+    xyz64 = Xyz(f64).init(0.950456, 1.000000, 1.089058);
     expected32 = Srgb(f64).init(1, 1, 1);
     expected64 = Srgb(f64).init(1, 1, 1);
     actual32 = Srgb(f64).fromXyz(xyz32);
@@ -475,9 +475,9 @@ test "Srgb(f64) fromXyz" {
     try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
 
     xyz32 = Xyz(f32).init(0.214, 0.417, 0.093);
-    xyz64 = Xyz(f64).init(0.214573, 0.416657, 0.093935);
+    xyz64 = Xyz(f64).init(0.214578, 0.416667, 0.093942);
     expected32 = Srgb(f64).init(0.071, 0.785, 0.172); // (22, 200, 45)
-    expected64 = Srgb(f64).init(0.086287, 0.784312, 0.176471); // (22, 200, 45)
+    expected64 = Srgb(f64).init(0.086278, 0.784313, 0.176468); // (22, 200, 45)
     actual32 = Srgb(f64).fromXyz(xyz32);
     actual64 = Srgb(f64).fromXyz(xyz64);
     try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);

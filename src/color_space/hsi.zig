@@ -1,4 +1,6 @@
+const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const color_formatter = @import("../color_formatter.zig");
 
 const Hsl = @import("hsl.zig").Hsl;
 const Hsv = @import("hsv.zig").Hsv;
@@ -25,6 +27,18 @@ pub fn Hsi(comptime T: type) type {
             return .{ .h = h, .s = s, .i = i };
         }
 
+        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+            return color_formatter.ColorFormatter(Self).init(self, style);
+        }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("({?}, {d}, {d})", .{ self.h, self.s, self.i });
+        }
+
+        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("Hsi({s})({?}, {d}, {d})", .{ @typeName(T), self.h, self.s, self.i });
+        }
+
         pub fn toXyz(self: Self) Xyz(T) {
             return self.toSrgb().toXyz();
         }
@@ -48,12 +62,12 @@ pub fn Hsi(comptime T: type) type {
             const m = self.i * (1.0 - self.s);
 
             return switch (hprime) {
-                0, 6 => Srgb.init(chroma + m, x + m, m),
-                1 => Srgb.init(x + m, chroma + m, m),
-                2 => Srgb.init(m, chroma + m, x + m),
-                3 => Srgb.init(m, x + m, chroma + m),
-                4 => Srgb.init(x + m, m, chroma + m),
-                5 => Srgb.init(chroma + m, m, x + m),
+                0, 6 => Srgb(T).init(chroma + m, x + m, m),
+                1 => Srgb(T).init(x + m, chroma + m, m),
+                2 => Srgb(T).init(m, chroma + m, x + m),
+                3 => Srgb(T).init(m, x + m, chroma + m),
+                4 => Srgb(T).init(x + m, m, chroma + m),
+                5 => Srgb(T).init(chroma + m, m, x + m),
                 else => unreachable,
             };
         }

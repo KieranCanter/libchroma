@@ -1,4 +1,6 @@
+const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const color_formatter = @import("../color_formatter.zig");
 
 const Hsv = @import("hsv.zig").Hsv;
 const Srgb = @import("rgb/srgb.zig").Srgb;
@@ -22,6 +24,18 @@ pub fn Hwb(comptime T: type) type {
 
         pub fn init(h: ?T, w: T, b: T) Self {
             return .{ .h = h, .w = w, .b = b };
+        }
+
+        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+            return color_formatter.ColorFormatter(Self).init(self, style);
+        }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("({?}, {d}, {d})", .{ self.h, self.w, self.b });
+        }
+
+        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("Hsl({s})({?}, {d}, {d})", .{ @typeName(T), self.h, self.w, self.b });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {

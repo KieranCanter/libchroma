@@ -1,4 +1,6 @@
+const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const color_formatter = @import("../color_formatter.zig");
 
 const Srgb = @import("rgb/srgb.zig").Srgb;
 const Xyz = @import("xyz.zig").Xyz;
@@ -23,6 +25,18 @@ pub fn Yxy(comptime T: type) type {
             return .{ .luma = luma, .x = x, .y = y };
         }
 
+        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+            return color_formatter.ColorFormatter(Self).init(self, style);
+        }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("({d}, {d}, {d})", .{ self.luma, self.x, self.y });
+        }
+
+        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("Yxy({s})({d}, {d}, {d})", .{ @typeName(T), self.luma, self.x, self.y });
+        }
+
         // Formula for Yxy -> XYZ conversion:
         // http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
         pub fn toXyz(self: Self) Xyz(T) {
@@ -43,7 +57,7 @@ pub fn Yxy(comptime T: type) type {
 
         // Formula for XYZ -> Yxy conversion:
         // http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
-        pub fn fromXyz(xyz: Xyz(T)) Self {
+        pub fn fromXyz(xyz: anytype) Self {
             const sum = xyz.x + xyz.y + xyz.z;
 
             if (sum == 0) {

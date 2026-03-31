@@ -1,5 +1,6 @@
 const std = @import("std");
 const assertColorInterface = @import("validation.zig").assertColorInterface;
+const colorSpaceName = @import("validation.zig").colorSpaceName;
 
 pub const ColorFormatStyle = enum {
     default,
@@ -23,12 +24,8 @@ pub fn ColorFormatter(comptime T: type) type {
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             switch (self.style) {
                 .raw => {
-                    const maybe_last_dot = std.mem.lastIndexOfScalar(u8, @typeName(T), '.');
-                    if (maybe_last_dot) |last_dot| {
-                        try writer.print("{s}{any}", .{ @typeName(T)[last_dot + 1 ..], self.color });
-                    } else {
-                        try writer.print("{s}{any}", .{ @typeName(T), self.color });
-                    }
+                    const typeName = colorSpaceName(Self);
+                    try writer.print("{s}{any}", .{ typeName, self.color });
                 },
                 .default => {
                     try self.color.format(writer);

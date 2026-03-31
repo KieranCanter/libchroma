@@ -34,7 +34,7 @@ const XYZ_TO_P3: [3][3]f32 = .{
 /// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
-pub fn P3(comptime T: type) type {
+pub fn DisplayP3(comptime T: type) type {
     validation.assertRgbType(T);
 
     return struct {
@@ -67,11 +67,11 @@ pub fn P3(comptime T: type) type {
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            return LinearP3(T).fromXyz(xyz).toP3();
+            return LinearDisplayP3(T).fromXyz(xyz).toP3();
         }
 
-        pub fn toLinear(self: Self) LinearP3(T) {
-            return LinearP3(T).init(
+        pub fn toLinear(self: Self) LinearDisplayP3(T) {
+            return LinearDisplayP3(T).init(
                 gammaToLinear(self.r),
                 gammaToLinear(self.g),
                 gammaToLinear(self.b),
@@ -121,7 +121,7 @@ pub fn P3(comptime T: type) type {
 /// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
-pub fn LinearP3(comptime T: type) type {
+pub fn LinearDisplayP3(comptime T: type) type {
     validation.assertRgbType(T);
 
     return struct {
@@ -157,8 +157,8 @@ pub fn LinearP3(comptime T: type) type {
             return rgb.linearFromXyz(Self, XYZ_TO_P3, xyz);
         }
 
-        pub fn toP3(self: Self) P3(T) {
-            return P3(T).init(
+        pub fn toP3(self: Self) DisplayP3(T) {
+            return DisplayP3(T).init(
                 linearToGamma(self.r),
                 linearToGamma(self.g),
                 linearToGamma(self.b),
@@ -186,11 +186,3 @@ pub fn LinearP3(comptime T: type) type {
 // ============================================================================
 // TESTS
 // ============================================================================
-
-// ===========================
-// P3
-// ===========================
-
-// ===========================
-// LinearP3
-// ===========================

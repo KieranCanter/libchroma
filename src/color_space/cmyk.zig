@@ -45,7 +45,7 @@ pub fn Cmyk(comptime T: type) type {
         }
 
         // Gray Component Replacement
-        pub fn gcr(self: Self, strength: T) ChromaError!void {
+        pub fn gcr(self: *Self, strength: T) ChromaError!void {
             if (strength < 0 or strength > 1) {
                 return ChromaError.OutOfRange;
             }
@@ -59,12 +59,12 @@ pub fn Cmyk(comptime T: type) type {
         }
 
         // Under Color Removal
-        pub fn ucr(self: Self) void {
-            return self.gcr(1);
+        pub fn ucr(self: *Self) void {
+            return self.gcr(1) catch unreachable;
         }
 
         // Under Color Addition
-        pub fn uca(self: Self, strength: T) ChromaError!void {
+        pub fn uca(self: *Self, strength: T) ChromaError!void {
             if (strength < 0 or strength > 1) {
                 return ChromaError.OutOfRange;
             }
@@ -141,7 +141,7 @@ test "Cmyk formatting" {
     alloc.free(act_pretty);
 
     const cmyk_f64 = Cmyk(f64).init(0.6, 0.5, 0.4, 0.3);
-    exp_format= "(0.6, 0.5, 0.4, 0.3)";
+    exp_format = "(0.6, 0.5, 0.4, 0.3)";
     exp_default = "(0.6, 0.5, 0.4, 0.3)";
     exp_raw = "Cmyk(f64).{ .c = 0.6, .m = 0.5, .y = 0.4, .k = 0.3 }";
     exp_pretty = "Cmyk(f64)(60.0%, 50.0%, 40.0%, 30.0%)";
@@ -159,51 +159,3 @@ test "Cmyk formatting" {
     alloc.free(act_raw);
     alloc.free(act_pretty);
 }
-
-//test "Cmyk(f32) to" {
-//    const tolerance = 0.002;
-//
-//    var srgb = Cmyk(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-//    var expected = Cmyk(f32).init(0.578, 0.127, 0.032);
-//    var actual = srgb.to();
-//    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-//
-//    srgb = Cmyk(f32).init(0, 0, 0);
-//    expected = Cmyk(f32).init(0, 0, 0);
-//    actual = srgb.to();
-//    try std.testing.expectEqual(expected, actual);
-//
-//    srgb = Cmyk(f32).init(1, 1, 1);
-//    expected = Cmyk(f32).init(1, 1, 1);
-//    actual = srgb.to();
-//    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-//
-//    srgb = Cmyk(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-//    expected = Cmyk(f32).init(0.008, 0.577, 0.026);
-//    actual = srgb.to();
-//    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-//}
-//
-//test "Cmyk(f64) to" {
-//    const tolerance = 0.000002;
-//
-//    var srgb = Cmyk(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-//    var expected = Cmyk(f64).init(0.577580, 0.127438, 0.031896);
-//    var actual = srgb.to();
-//    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-//
-//    srgb = Cmyk(f64).init(0, 0, 0);
-//    expected = Cmyk(f64).init(0, 0, 0);
-//    actual = srgb.to();
-//    try std.testing.expectEqual(expected, actual);
-//
-//    srgb = Cmyk(f64).init(1, 1, 1);
-//    expected = Cmyk(f64).init(1, 1, 1);
-//    actual = srgb.to();
-//    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-//
-//    srgb = Cmyk(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-//    expected = Cmyk(f64).init(0.008023, 0.577580, 0.026241);
-//    actual = srgb.to();
-//    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-//}

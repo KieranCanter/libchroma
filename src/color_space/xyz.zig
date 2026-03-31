@@ -1,4 +1,6 @@
+const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const color_formatter = @import("../color_formatter.zig");
 
 /// Type to hold a CIE XYZ value. The central funnel for converting across the common color spaces
 /// like sRGB to the CIE LAB color spaces.
@@ -19,6 +21,26 @@ pub fn Xyz(comptime T: type) type {
 
         pub fn init(x: T, y: T, z: T) Self {
             return .{ .x = x, .y = y, .z = z };
+        }
+
+        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+            return color_formatter.ColorFormatter(Self).init(self, style);
+        }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("({d}, {d}, {d})", .{ self.x, self.y, self.z });
+        }
+
+        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("Xyz({s})({d}, {d}, {d})", .{ @typeName(T), self.x, self.y, self.z });
+        }
+
+        pub fn toXyz(self: Self) Xyz(T) {
+            return self;
+        }
+
+        pub fn fromXyz(xyz: anytype) Self {
+            return xyz;
         }
     };
 }

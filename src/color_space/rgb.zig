@@ -4,7 +4,7 @@ const color_formatter = @import("../color_formatter.zig");
 const rgbToFloatType = validation.rgbToFloatType;
 
 pub const srgb = @import("rgb/srgb.zig");
-pub const p3 = @import("rgb/p3.zig");
+pub const display_p3 = @import("rgb/display_p3.zig");
 pub const rec2020 = @import("rgb/rec2020.zig");
 
 const Cmyk = @import("cmyk.zig").Cmyk;
@@ -357,9 +357,14 @@ fn computeHue(comptime F: type, r: F, g: F, b: F, xmax: F, xmin: F) F {
 // F: destination float type
 // val: a u8 or float value
 pub fn toFloat(comptime F: type, val: anytype) F {
+    comptime {
+        if (@typeInfo(F) != .float)
+            @compileError("toFloat() requires a float destination type");
+    }
+
     return switch (@typeInfo(@TypeOf(val))) {
         .int => @as(F, @floatFromInt(val)) / 255.0,
-        .float => val,
+        .float => @floatCast(val),
         else => unreachable,
     };
 }
@@ -368,9 +373,14 @@ pub fn toFloat(comptime F: type, val: anytype) F {
 // T: destination type (u8 or float)
 // val: float value
 pub fn fromFloat(comptime T: type, val: anytype) T {
+    comptime {
+        if (@typeInfo(@TypeOf(val)) != .float)
+            @compileError("fromFloat() requires a float `val` input");
+    }
+
     return switch (@typeInfo(T)) {
         .int => @as(u8, @intFromFloat(@round(val * 255.0))),
-        .float => val,
+        .float => @floatCast(val),
         else => unreachable,
     };
 }
@@ -382,7 +392,6 @@ pub fn rgbCast(comptime U: type, val: anytype) U {
     const T = @TypeOf(val);
     validation.assertRgbType(U);
 
-    // For integers, can only occur if T == U == u8.
     if (T == U) {
         return val;
     }

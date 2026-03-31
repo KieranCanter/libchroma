@@ -27,8 +27,8 @@ pub const Yxy = yxy.Yxy;
 pub const HexRgb = rgb.HexRgb;
 pub const Srgb = rgb.srgb.Srgb;
 pub const LinearSrgb = rgb.srgb.LinearSrgb;
-pub const P3 = rgb.p3.P3;
-pub const LinearP3 = rgb.p3.LinearP3;
+pub const DisplayP3 = rgb.display_p3.DisplayP3;
+pub const LinearDisplayP3 = rgb.display_p3.LinearDisplayP3;
 pub const Rec2020 = rgb.rec2020.Rec2020;
 pub const Rec2020Scene = rgb.rec2020.Rec2020Scene;
 pub const LinearRec2020 = rgb.rec2020.LinearRec2020;
@@ -42,16 +42,22 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     validation.assertColorInterface(Src);
     validation.assertColorInterface(Dest);
 
-    // Short circuit the conversion if the type has a function named "to<Dest>()"
-    const toDest_fn_name = "to" ++ @typeName(Dest);
+    // Short circuit the conversion if the source type has a function named "to<Dest>()"
+    const toDest_fn_name = "to" ++ validation.colorSpaceName(Dest);
     if (std.meta.hasMethod(Src, toDest_fn_name)) {
         return @call(.auto, @field(Src, toDest_fn_name), .{src});
+    }
+
+    // Short circuit the conversion if the destination type has a function named "from<Src>()"
+    const fromSrc_fn_name = "from" ++ validation.colorSpaceName(Src);
+    if (std.meta.hasMethod(Dest, fromSrc_fn_name)) {
+        return @call(.auto, @field(Dest, fromSrc_fn_name), .{src});
     }
 
     // Otherwise, go through canonical color space XYZ.
     // By the Color interface contract, every color space should implement a `toXyz()` function and
     // a `fromXyz()` function.
-    return src.fromXyz(src.toXyz());
+    return Dest.fromXyz(src.toXyz());
 }
 
 // In testing, tolerances are used for some comparisons to allow inexact approximation checks:

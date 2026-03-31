@@ -1,4 +1,6 @@
+const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const color_formatter = @import("../color_formatter.zig");
 
 const Hsl = @import("hsl.zig").Hsl;
 const Hwb = @import("hwb.zig").Hwb;
@@ -25,19 +27,31 @@ pub fn Hsv(comptime T: type) type {
             return .{ .h = h, .s = s, .v = v };
         }
 
+        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
+            return color_formatter.ColorFormatter(Self).init(self, style);
+        }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("({?}, {d}, {d})", .{ self.h, self.s, self.v });
+        }
+
+        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            try writer.print("Hsl({s})({?}, {d}, {d})", .{ @typeName(T), self.h, self.s, self.v });
+        }
+
         pub fn toXyz(self: Self) Xyz(T) {
             return self.toSrgb().toXyz();
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            return Srgb(T).fromXyz(xyz).toHsl();
+            return Srgb(T).fromXyz(xyz).toHsv();
         }
 
         // Formula for HSV -> sRGB conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB
         pub fn toSrgb(self: Self) Srgb(T) {
             if (self.h == null) {
-                return Srgb(T).init(self.l, self.l, self.l);
+                return Srgb(T).init(self.v, self.v, self.v);
             }
 
             const h = self.h.?;

@@ -6,9 +6,6 @@ const Xyz = @import("color_space/xyz.zig").Xyz;
 pub inline fn assertColorInterface(comptime T: type) void {
     comptime {
         const color_space_name = colorSpaceName(T);
-        if (std.mem.containsAtLeast(u8, color_space_name, 1, "Xyz")) {
-            return;
-        }
         if (!std.meta.hasMethod(T, "toXyz")) {
             @compileError(color_space_name ++ " must define a `toXyz()` method");
         }
@@ -54,6 +51,15 @@ pub inline fn colorSpaceName(comptime T: type) []const u8 {
     comptime {
         const maybe_last_dot = std.mem.lastIndexOfScalar(u8, @typeName(T), '.');
         if (maybe_last_dot) |last_dot| {
+            const maybe_open_paren = std.mem.indexOfScalarPos(u8, @typeName(T), last_dot + 1, '(');
+            if (maybe_open_paren) |open_paren| {
+                const closing_paren = std.mem.indexOfScalarPos(u8, @typeName(T), open_paren, ')').?;
+                return @typeName(T)[last_dot + 1 .. closing_paren + 1];
+            }
+            const maybe_closing_paren = std.mem.indexOfScalarPos(u8, @typeName(T), last_dot + 1, ')');
+            if (maybe_closing_paren) |closing_paren| {
+                return @typeName(T)[last_dot + 1 .. closing_paren];
+            }
             return @typeName(T)[last_dot + 1 ..];
         } else {
             return @typeName(T);
