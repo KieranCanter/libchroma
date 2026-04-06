@@ -55,11 +55,11 @@ pub fn DisplayP3(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("P3({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
+            try writer.print("DisplayP3({s})({f})", .{ @typeName(T), self });
         }
 
         pub fn toXyz(self: Self) Xyz(F) {
@@ -142,11 +142,11 @@ pub fn LinearDisplayP3(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("LinearP3({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
+            try writer.print("LinearDisplayP3({s})({f})", .{ @typeName(T), self });
         }
 
         pub fn toXyz(self: Self) Xyz(F) {

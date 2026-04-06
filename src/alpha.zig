@@ -1,6 +1,9 @@
 const std = @import("std");
 const assertColorInterface = @import("validation.zig").assertColorInterface;
+const colorSpaceName = @import("validation.zig").colorSpaceName;
 const color_formatter = @import("color_formatter.zig");
+
+const Srgb = @import("color_space/rgb/srgb.zig").Srgb;
 
 /// Wrapper type to add an alpha channel to any type.
 ///
@@ -12,17 +15,13 @@ pub fn Alpha(color: anytype) type {
 
     return struct {
         const Self = @This();
-        const T = C.Backing;
+        pub const Backing = C.Backing;
 
         color: C,
-        alpha: T,
+        alpha: Backing,
 
-        pub fn init(alpha: T) Self {
+        pub fn init(alpha: Backing) Self {
             return .{ .color = color, .alpha = alpha };
-        }
-
-        pub fn initOpaque() Self {
-            return .{ .color = color, .alpha = 0 }; // TODO: does opaque mean translucent?
         }
 
         pub fn stripAlpha(self: Self) C {
@@ -34,15 +33,20 @@ pub fn Alpha(color: anytype) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            // FIX: kind of awkward format e.g. `(r, g, b), (alpha)`
-            // Would be better as `(r, g, b, alpha)` (maybe I should remove the included parens)
-            try writer.print("{f}, (d)", .{ self.color.format(), self.alpha });
+            try writer.print("{f}, {d}", .{ self.color, self.alpha });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            // FIX: @typeName(C) will result in the long full namespace of C
-            // Can I get backing type T from C somehow?
-            try writer.print("Alpha({s})({d}, {d}, {d})", .{ @typeName(C), self.x, self.y, self.z });
+            const typeName = colorSpaceName(C);
+            try writer.print("Alpha({s})({f})", .{ typeName, self });
+        }
+
+        pub fn toXyz() void {
+            return;
+        }
+
+        pub fn fromXyz() void {
+            return;
         }
     };
 }

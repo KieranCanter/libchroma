@@ -31,7 +31,13 @@ pub fn ColorFormatter(comptime T: type) type {
                     try self.color.format(writer);
                 },
                 .pretty => {
-                    try self.color.formatPretty(writer);
+                    // Call type's formatPretty() if it has one
+                    if (@hasDecl(T, "formatPretty"))
+                        return @call(.auto, @field(T, "formatPretty"), .{self.color, writer});
+
+                    // Otherwise fall back to wrapping
+                    const typeName = colorSpaceName(Self);
+                    try writer.print("{s}({f})", .{ typeName, self.color });
                 },
             }
         }

@@ -28,11 +28,7 @@ pub fn Xyz(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.x, self.y, self.z });
-        }
-
-        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Xyz({s})({d}, {d}, {d})", .{ @typeName(T), self.x, self.y, self.z });
+            try writer.print("{d}, {d}, {d}", .{ self.x, self.y, self.z });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {
@@ -40,7 +36,7 @@ pub fn Xyz(comptime T: type) type {
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            return xyz;
+            return .{ .x = @floatCast(xyz.x), .y = @floatCast(xyz.y), .z = @floatCast(xyz.z) };
         }
     };
 }

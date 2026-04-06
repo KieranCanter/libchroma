@@ -33,15 +33,11 @@ pub fn Cmyk(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d}, {d})", .{ self.c, self.m, self.y, self.k });
-        }
-
-        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             const c_percent = self.c * 100;
             const m_percent = self.m * 100;
             const y_percent = self.y * 100;
             const k_percent = self.k * 100;
-            try writer.print("Cmyk({s})({d:.1}%, {d:.1}%, {d:.1}%, {d:.1}%)", .{ @typeName(T), c_percent, m_percent, y_percent, k_percent });
+            try writer.print("{d:.1}%, {d:.1}%, {d:.1}%, {d:.1}%", .{ c_percent, m_percent, y_percent, k_percent });
         }
 
         // Gray Component Replacement
@@ -122,8 +118,8 @@ test "Cmyk formatting" {
     const alloc = std.testing.allocator;
 
     const cmyk_f32 = Cmyk(f32).init(0.6, 0.5, 0.4, 0.3);
-    var exp_format: []const u8 = "(0.6, 0.5, 0.4, 0.3)";
-    var exp_default: []const u8 = "(0.6, 0.5, 0.4, 0.3)";
+    var exp_format: []const u8 = "60.0%, 50.0%, 40.0%, 30.0%";
+    var exp_default: []const u8 = "60.0%, 50.0%, 40.0%, 30.0%";
     var exp_raw: []const u8 = "Cmyk(f32).{ .c = 0.6, .m = 0.5, .y = 0.4, .k = 0.3 }";
     var exp_pretty: []const u8 = "Cmyk(f32)(60.0%, 50.0%, 40.0%, 30.0%)";
     var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f32});
@@ -141,8 +137,8 @@ test "Cmyk formatting" {
     alloc.free(act_pretty);
 
     const cmyk_f64 = Cmyk(f64).init(0.6, 0.5, 0.4, 0.3);
-    exp_format = "(0.6, 0.5, 0.4, 0.3)";
-    exp_default = "(0.6, 0.5, 0.4, 0.3)";
+    exp_format = "60.0%, 50.0%, 40.0%, 30.0%";
+    exp_default = "60.0%, 50.0%, 40.0%, 30.0%";
     exp_raw = "Cmyk(f64).{ .c = 0.6, .m = 0.5, .y = 0.4, .k = 0.3 }";
     exp_pretty = "Cmyk(f64)(60.0%, 50.0%, 40.0%, 30.0%)";
     act_format = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f64});

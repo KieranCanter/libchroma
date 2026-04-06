@@ -30,11 +30,7 @@ pub fn Yxy(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.luma, self.x, self.y });
-        }
-
-        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Yxy({s})({d}, {d}, {d})", .{ @typeName(T), self.luma, self.x, self.y });
+            try writer.print("{d}, {d}, {d}", .{ self.luma, self.x, self.y });
         }
 
         // Formula for Yxy -> XYZ conversion:

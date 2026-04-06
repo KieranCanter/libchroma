@@ -97,7 +97,7 @@ fn findVersion(manifest: []const u8) !struct { start: usize, end: usize } {
 fn bumpVersion(alloc: std.mem.Allocator, old: []const u8) ![]u8 {
     var it = std.mem.splitScalar(u8, old, '+');
     const base = it.next() orelse return error.InvalidVersion;
-    const build_str = it.next() orelse return error.MissingBuild;
+    const build_str = it.next() orelse "0";
     const build_num = try std.fmt.parseInt(usize, build_str, 10) + 1;
 
     return std.fmt.allocPrint(alloc, "{s}+{d}", .{ base, build_num });

@@ -31,11 +31,7 @@ pub fn Hwb(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({?}, {d}, {d})", .{ self.h, self.w, self.b });
-        }
-
-        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Hsl({s})({?}, {d}, {d})", .{ @typeName(T), self.h, self.w, self.b });
+            try writer.print("{?}, {d}, {d}", .{ self.h, self.w, self.b });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {

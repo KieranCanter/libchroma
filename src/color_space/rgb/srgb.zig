@@ -8,7 +8,6 @@ const Hsi = @import("../hsi.zig").Hsi;
 const Hsl = @import("../hsl.zig").Hsl;
 const Hsv = @import("../hsv.zig").Hsv;
 const Hwb = @import("../hwb.zig").Hwb;
-const HexRgb = rgb.HexRgb;
 const Xyz = @import("../xyz.zig").Xyz;
 
 const rgbCast = rgb.rgbCast;
@@ -51,17 +50,43 @@ pub fn Srgb(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
+        /// Initialize from a 24-bit hex value (0xRRGGBB).
+        pub fn initFromHex(hex: u24) Self {
+            const r: u8 = @intCast(hex >> 16 & 0xFF);
+            const g: u8 = @intCast(hex >> 8 & 0xFF);
+            const b: u8 = @intCast(hex & 0xFF);
+            if (T == u8) return Self.init(r, g, b);
+            return Self.init(
+                @as(T, @floatFromInt(r)) / 255.0,
+                @as(T, @floatFromInt(g)) / 255.0,
+                @as(T, @floatFromInt(b)) / 255.0,
+            );
+        }
+
+        /// Initialize from a hex string in "RRGGBB" or "#RRGGBB" format.
+        pub fn initFromHexString(hex_str: []const u8) rgb.RgbError!Self {
+            return initFromHex(try rgb.parseHexString(hex_str));
+        }
+
+        /// Pack into a 24-bit hex value (0xRRGGBB).
+        pub fn toHex(self: Self) u24 {
+            if (T == u8) return rgb.packHex(self.r, self.g, self.b);
+            const r: u8 = @intFromFloat(@round(self.r * 255.0));
+            const g: u8 = @intFromFloat(@round(self.g * 255.0));
+            const b: u8 = @intFromFloat(@round(self.b * 255.0));
+            return rgb.packHex(r, g, b);
+        }
+
         pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
             return color_formatter.ColorFormatter(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            const hex = self.toHex();
-            try writer.print("Srgb({s})({d}, {d}, {d}) #{X}", .{ @typeName(T), self.r, self.g, self.b, hex.value });
+            try writer.print("Srgb({s})({f})[#{X}]", .{ @typeName(T), self, self.toHex() });
         }
 
         pub fn toXyz(self: Self) Xyz(F) {
@@ -98,10 +123,6 @@ pub fn Srgb(comptime T: type) type {
 
         pub fn toCmyk(self: Self) Cmyk(F) {
             return rgb.toCmyk(self);
-        }
-
-        pub fn toHex(self: Self) HexRgb {
-            return HexRgb.initFromSrgb(self);
         }
 
         pub fn toHsi(self: Self) Hsi(F) {
@@ -148,11 +169,11 @@ pub fn LinearSrgb(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("LinearSrgb({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
+            try writer.print("LinearSrgb({s})({f})", .{ @typeName(T), self });
         }
 
         pub fn toXyz(self: Self) Xyz(F) {
@@ -200,10 +221,10 @@ test "Srgb formatting" {
     const alloc = std.testing.allocator;
 
     const srgb_u8 = Srgb(u8).init(200, 100, 50);
-    var exp_format: []const u8 = "(200, 100, 50)";
-    var exp_default: []const u8 = "(200, 100, 50)";
+    var exp_format: []const u8 = "200, 100, 50";
+    var exp_default: []const u8 = "200, 100, 50";
     var exp_raw: []const u8 = "Srgb(u8).{ .r = 200, .g = 100, .b = 50 }";
-    var exp_pretty: []const u8 = "Srgb(u8)(200, 100, 50) #C86432";
+    var exp_pretty: []const u8 = "Srgb(u8)(200, 100, 50)[#C86432]";
     var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8});
     var act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.default)});
     var act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.raw)});
@@ -219,10 +240,10 @@ test "Srgb formatting" {
     alloc.free(act_pretty);
 
     const srgb_f32 = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    exp_format = "(0.784, 0.392, 0.196)";
-    exp_default = "(0.784, 0.392, 0.196)";
+    exp_format = "0.784, 0.392, 0.196";
+    exp_default = "0.784, 0.392, 0.196";
     exp_raw = "Srgb(f32).{ .r = 0.784, .g = 0.392, .b = 0.196 }";
-    exp_pretty = "Srgb(f32)(0.784, 0.392, 0.196) #C86432";
+    exp_pretty = "Srgb(f32)(0.784, 0.392, 0.196)[#C86432]";
     act_format = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32});
     act_default = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.default)});
     act_raw = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.raw)});
@@ -238,10 +259,10 @@ test "Srgb formatting" {
     alloc.free(act_pretty);
 
     const srgb_f64 = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    exp_format = "(0.784313, 0.392156, 0.196078)";
-    exp_default = "(0.784313, 0.392156, 0.196078)";
+    exp_format = "0.784313, 0.392156, 0.196078";
+    exp_default = "0.784313, 0.392156, 0.196078";
     exp_raw = "Srgb(f64).{ .r = 0.784313, .g = 0.392156, .b = 0.196078 }";
-    exp_pretty = "Srgb(f64)(0.784313, 0.392156, 0.196078) #C86432";
+    exp_pretty = "Srgb(f64)(0.784313, 0.392156, 0.196078)[#C86432]";
     act_format = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64});
     act_default = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.default)});
     act_raw = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.raw)});
@@ -856,8 +877,8 @@ test "LinearSrgb formatting" {
     const alloc = std.testing.allocator;
 
     const linear_u8 = LinearSrgb(u8).init(200, 100, 50);
-    var exp_format: []const u8 = "(200, 100, 50)";
-    var exp_default: []const u8 = "(200, 100, 50)";
+    var exp_format: []const u8 = "200, 100, 50";
+    var exp_default: []const u8 = "200, 100, 50";
     var exp_raw: []const u8 = "LinearSrgb(u8).{ .r = 200, .g = 100, .b = 50 }";
     var exp_pretty: []const u8 = "LinearSrgb(u8)(200, 100, 50)";
     var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8});
@@ -875,8 +896,8 @@ test "LinearSrgb formatting" {
     alloc.free(act_pretty);
 
     const linear_f32 = LinearSrgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    exp_format = "(0.784, 0.392, 0.196)";
-    exp_default = "(0.784, 0.392, 0.196)";
+    exp_format = "0.784, 0.392, 0.196";
+    exp_default = "0.784, 0.392, 0.196";
     exp_raw = "LinearSrgb(f32).{ .r = 0.784, .g = 0.392, .b = 0.196 }";
     exp_pretty = "LinearSrgb(f32)(0.784, 0.392, 0.196)";
     act_format = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32});
@@ -894,8 +915,8 @@ test "LinearSrgb formatting" {
     alloc.free(act_pretty);
 
     const linear_f64 = LinearSrgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    exp_format = "(0.784313, 0.392156, 0.196078)";
-    exp_default = "(0.784313, 0.392156, 0.196078)";
+    exp_format = "0.784313, 0.392156, 0.196078";
+    exp_default = "0.784313, 0.392156, 0.196078";
     exp_raw = "LinearSrgb(f64).{ .r = 0.784313, .g = 0.392156, .b = 0.196078 }";
     exp_pretty = "LinearSrgb(f64)(0.784313, 0.392156, 0.196078)";
     act_format = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64});

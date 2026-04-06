@@ -32,11 +32,7 @@ pub fn Hsv(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({?}, {d}, {d})", .{ self.h, self.s, self.v });
-        }
-
-        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Hsv({s})({?}, {d}, {d})", .{ @typeName(T), self.h, self.s, self.v });
+            try writer.print("{?}, {d}, {d}", .{ self.h, self.s, self.v });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {

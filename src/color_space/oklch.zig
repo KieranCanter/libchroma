@@ -2,13 +2,14 @@ const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
 const color_formatter = @import("../color_formatter.zig");
 
+const Oklab = @import("oklab.zig").Oklab;
 const Xyz = @import("xyz.zig").Xyz;
 
-/// Type to hold a OKLCH value. ...
+/// Type to hold an OKLCH value — the cylindrical form of OKLab.
 ///
-/// l: ...
-/// c: ...
-/// h: ...
+/// l: perceived lightness in [0, 1]
+/// c: chroma in [0, ~0.4]
+/// h: hue angle in [0, 360) or null when chroma is 0 (achromatic)
 pub fn Oklch(comptime T: type) type {
     assertFloatType(T);
 
@@ -18,9 +19,9 @@ pub fn Oklch(comptime T: type) type {
 
         l: T,
         c: T,
-        h: T,
+        h: ?T,
 
-        pub fn init(l: T, c: T, h: T) Self {
+        pub fn init(l: T, c: T, h: ?T) Self {
             return .{ .l = l, .c = c, .h = h };
         }
 
@@ -29,21 +30,81 @@ pub fn Oklch(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.l, self.c, self.h });
-        }
-
-        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Oklch({s})({d}, {d}, {d})", .{ @typeName(T), self.l, self.c, self.h });
+            try writer.print("{d}, {d}, {?}", .{ self.l, self.c, self.h });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {
-            @compileLog("Implement Oklch(T).toXyz()");
-            return Xyz(T).init(self.l, self.c, self.h);
+            return self.toOklab().toXyz();
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            @compileLog("Implement Oklch(T).fromXyz()");
-            return Oklch(T).init(xyz.x, xyz.y, xyz.z);
+        pub fn fromXyz(xyz: Xyz(T)) Self {
+            return Oklab(T).fromXyz(xyz).toOklch();
+        }
+
+        // OKLCH -> OKLab (polar to cartesian)
+        pub fn toOklab(self: Self) Oklab(T) {
+            if (self.h == null) {
+                return Oklab(T).init(self.l, 0, 0);
+            }
+            const h_rad = self.h.? * (std.math.pi / 180.0);
+            return Oklab(T).init(
+                self.l,
+                self.c * @cos(h_rad),
+                self.c * @sin(h_rad),
+            );
         }
     };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+const validation = @import("../validation.zig");
+
+test "Oklch(f32) toOklab achromatic" {
+    const tolerance = 0.002;
+
+    const oklch = Oklch(f32).init(0.5, 0.0, null);
+    const oklab = oklch.toOklab();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), oklab.l, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklab.a, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklab.b, tolerance);
+}
+
+test "Oklch(f32) toOklab chromatic" {
+    const tolerance = 0.002;
+
+    const oklch = Oklch(f32).init(0.628, 0.258, 29.234);
+    const oklab = oklch.toOklab();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.628), oklab.l, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.225), oklab.a, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.126), oklab.b, tolerance);
+}
+
+test "Oklch(f32) Oklab round-trip" {
+    const tolerance = 0.002;
+
+    const original = Oklab(f32).init(0.628, 0.225, 0.126);
+    const oklch = original.toOklch();
+    const result = oklch.toOklab();
+    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+}
+
+test "Oklch(f64) Oklab round-trip" {
+    const tolerance = 0.000002;
+
+    const original = Oklab(f64).init(0.628, 0.225, 0.126);
+    const oklch = original.toOklch();
+    const result = oklch.toOklab();
+    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+}
+
+test "Oklch(f32) XYZ round-trip" {
+    const tolerance = 0.002;
+
+    const original = Xyz(f32).init(0.2895, 0.2163, 0.0567);
+    const oklch = Oklch(f32).fromXyz(original);
+    const result = oklch.toXyz();
+    try validation.expectColorsApproxEqAbs(original, result, tolerance);
 }

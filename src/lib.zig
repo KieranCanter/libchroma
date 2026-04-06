@@ -33,7 +33,6 @@ pub const Xyz = xyz.Xyz;
 pub const Yxy = yxy.Yxy;
 
 // RGB Color Spaces
-pub const HexRgb = rgb.HexRgb;
 pub const Srgb = rgb.srgb.Srgb;
 pub const LinearSrgb = rgb.srgb.LinearSrgb;
 pub const DisplayP3 = rgb.display_p3.DisplayP3;
@@ -65,7 +64,6 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     };
     const toDest_fn_name = "to" ++ destName;
     if (std.meta.hasMethod(Src, toDest_fn_name)) {
-        std.debug.print("Calling {s}()\n", .{toDest_fn_name});
         return @call(.auto, @field(Src, toDest_fn_name), .{src});
     }
 
@@ -80,14 +78,12 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     };
     const fromSrc_fn_name = "from" ++ srcName;
     if (std.meta.hasMethod(Dest, fromSrc_fn_name)) {
-        std.debug.print("Calling {s}()\n", .{fromSrc_fn_name});
         return @call(.auto, @field(Dest, fromSrc_fn_name), .{src});
     }
 
     // Otherwise, go through canonical color space XYZ.
     // By the Color interface contract, every color space should implement a `toXyz()` function and
     // a `fromXyz()` function.
-    std.debug.print("Calling toXyz() and fromXyz()\n", .{});
     return Dest.fromXyz(src.toXyz());
 }
 

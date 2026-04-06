@@ -32,11 +32,7 @@ pub fn Hsi(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({?}, {d}, {d})", .{ self.h, self.s, self.i });
-        }
-
-        pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Hsi({s})({?}, {d}, {d})", .{ @typeName(T), self.h, self.s, self.i });
+            try writer.print("{?}, {d}, {d}", .{ self.h, self.s, self.i });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {

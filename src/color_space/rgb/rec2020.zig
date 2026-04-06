@@ -54,11 +54,11 @@ pub fn Rec2020(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Rec2020({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
+            try writer.print("Rec2020({s})({f})", .{ @typeName(T), self.r, self.g, self.b });
         }
 
         pub fn toXyz(self: Self) Xyz(F) {
@@ -138,11 +138,11 @@ pub fn Rec2020Scene(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Rec2020Scene({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
+            try writer.print("Rec2020Scene({s})({f})", .{ @typeName(T), self });
         }
 
         pub inline fn cast(self: Self, comptime U: type) Rec2020Scene(U) {
@@ -235,11 +235,11 @@ pub fn LinearRec2020(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("({d}, {d}, {d})", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("LinearRec2020({s})({d}, {d}, {d})", .{ @typeName(T), self.r, self.g, self.b });
+            try writer.print("LinearRec2020({s})({f})", .{ @typeName(T), self });
         }
 
         pub fn toXyz(self: Self) Xyz(F) {

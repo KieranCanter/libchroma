@@ -19,117 +19,42 @@ pub const RgbError = error{
     InvalidHexString,
 };
 
-/// Type to hold a 24-bit Hex RGB value of three bytes (equivalent to an sRGB value). Effectively a convenience
-/// wrapper for an Srgb(u8) represented as a u24, merging the red, green, and blue u8s together,
-/// allowing those working with hex codes to pass the hexidecimal number as an integer or string to
-/// initialize an RGB value.
-///
-/// value: RRGGBB value as a 3-byte (24-bit) unsigned integer
-pub const HexRgb = struct {
-    const Self = @This();
+// Hex parsing utilities (used by Srgb.initFromHex / initFromHexString)
 
-    value: u24,
+fn parseNibble(char: u8) RgbError!u8 {
+    return switch (char) {
+        '0'...'9' => char - '0',
+        'a'...'f' => char - 'a' + 10,
+        'A'...'F' => char - 'A' + 10,
+        else => return RgbError.InvalidHexString,
+    };
+}
 
-    pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-        return color_formatter.ColorFormatter(Self).init(self, style);
+fn parseByte(byte: []const u8) RgbError!u8 {
+    const nib_left = try parseNibble(byte[0]) << 4;
+    const nib_right = try parseNibble(byte[1]);
+    return nib_left | nib_right;
+}
+
+pub fn parseHexString(hex_str: []const u8) RgbError!u24 {
+    if (hex_str.len == 7 and hex_str[0] == '#') {
+        return parseHexString(hex_str[1..]);
     }
 
-    pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-        try writer.print("({x})", .{self.value});
+    if (hex_str.len != 6) {
+        return RgbError.InvalidHexString;
     }
 
-    pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-        try writer.print("HexRgb(#{X})", .{self.value});
-    }
+    const byte0: u24 = @as(u24, @intCast(try parseByte(hex_str[0..2]))) << 16;
+    const byte1: u24 = @as(u16, @intCast(try parseByte(hex_str[2..4]))) << 8;
+    const byte2: u24 = try parseByte(hex_str[4..6]);
 
-    fn parseHexU8(r: u8, g: u8, b: u8) u24 {
-        const byte0 = @as(u24, @intCast(r)) << 16;
-        const byte1 = @as(u16, @intCast(g)) << 8;
-        const byte2 = b;
-        return byte0 | byte1 | byte2;
-    }
+    return byte0 | byte1 | byte2;
+}
 
-    fn parseNibble(char: u8) RgbError!u8 {
-        return switch (char) {
-            '0'...'9' => char - '0',
-            'a'...'f' => char - 'a' + 10,
-            'A'...'F' => char - 'A' + 10,
-            else => return RgbError.InvalidHexString,
-        };
-    }
-
-    fn parseByte(byte: []const u8) RgbError!u8 {
-        const nib_left = try parseNibble(byte[0]) << 4;
-        const nib_right = try parseNibble(byte[1]);
-        return nib_left | nib_right;
-    }
-
-    fn parseHexString(hex: anytype) RgbError!u24 {
-        const hex_str: []const u8 = hex;
-
-        if (hex_str.len == 7 and hex_str[0] == '#') {
-            return parseHexString(hex_str[1..]);
-        }
-
-        if (hex_str.len != 6) {
-            return RgbError.InvalidHexString;
-        }
-
-        const byte0: u24 = @as(u24, @intCast(try parseByte(hex_str[0..2]))) << 16;
-        const byte1: u24 = @as(u16, @intCast(try parseByte(hex_str[2..4]))) << 8;
-        const byte2: u24 = try parseByte(hex_str[4..6]);
-
-        return byte0 | byte1 | byte2;
-    }
-
-    pub fn initFromU8(r: u8, g: u8, b: u8) Self {
-        return .{ .value = parseHexU8(r, g, b) };
-    }
-
-    pub fn initFromU24(hex: u24) Self {
-        return .{ .value = hex };
-    }
-
-    pub fn initFromString(hex: []const u8) RgbError!Self {
-        const rgb = try parseHexString(hex);
-        return .{ .value = rgb };
-    }
-
-    pub fn initFromSrgb(srgb_val: anytype) Self {
-        const T = @TypeOf(srgb_val).Backing;
-        if (T == u8) return .{ .value = parseHexU8(srgb_val.r, srgb_val.g, srgb_val.b) };
-
-        const r = @as(u8, @intFromFloat(@round(srgb_val.r * 255.0)));
-        const g = @as(u8, @intFromFloat(@round(srgb_val.g * 255.0)));
-        const b = @as(u8, @intFromFloat(@round(srgb_val.b * 255.0)));
-        return .{ .value = parseHexU8(r, g, b) };
-    }
-
-    pub fn toXyz(self: Self, comptime T: type) Xyz(T) {
-        return self.toSrgb(T).toXyz();
-    }
-
-    pub fn fromXyz(xyz: anytype) Self {
-        const T = @TypeOf(xyz).Backing;
-        return initFromSrgb(Srgb(T).fromXyz(xyz));
-    }
-
-    pub inline fn toSrgb(self: Self, comptime T: type) Srgb(T) {
-        const r: u8 = @as(u8, @intCast(self.value >> 16 & 0xFF));
-        const g: u8 = @as(u8, @intCast(self.value >> 8 & 0xFF));
-        const b: u8 = @as(u8, @intCast(self.value & 0xFF));
-
-        if (T == u8) {
-            return Srgb(u8).init(r, g, b);
-        }
-
-        return Srgb(T).init(
-            @as(T, @floatFromInt(r)) / 255.0,
-            @as(T, @floatFromInt(g)) / 255.0,
-            @as(T, @floatFromInt(b)) / 255.0,
-        );
-    }
-};
+pub fn packHex(r: u8, g: u8, b: u8) u24 {
+    return @as(u24, r) << 16 | @as(u16, g) << 8 | b;
+}
 
 pub fn linearToXyz(matrix: [3][3]f32, linear: anytype) Xyz(rgbToFloatType(@TypeOf(linear).Backing)) {
     const F = rgbToFloatType(@TypeOf(linear).Backing);
@@ -412,224 +337,101 @@ pub fn rgbCast(comptime U: type, val: anytype) U {
 // ============================================================================
 
 // ==========================
-// HexRgb
+// Srgb hex methods
 // ==========================
-test "HexRgb formatting" {
-    const alloc = std.testing.allocator;
 
-    const hex = HexRgb.initFromU8(200, 100, 50);
-    const exp_format: []const u8 = "(c86432)";
-    const exp_default: []const u8 = "(c86432)";
-    const exp_raw: []const u8 = "HexRgb.{ .value = 13132850 }";
-    const exp_pretty: []const u8 = "HexRgb(#C86432)";
-    const act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex});
-    const act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex.formatter(.default)});
-    const act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex.formatter(.raw)});
-    const act_pretty: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{hex.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+test "Srgb initFromHexString" {
+    var c = try Srgb(u8).initFromHexString("C86432");
+    try std.testing.expectEqual(Srgb(u8).init(200, 100, 50), c);
 
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
+    c = try Srgb(u8).initFromHexString("#ffffff");
+    try std.testing.expectEqual(Srgb(u8).init(255, 255, 255), c);
+
+    c = try Srgb(u8).initFromHexString("000000");
+    try std.testing.expectEqual(Srgb(u8).init(0, 0, 0), c);
+
+    c = try Srgb(u8).initFromHexString("#16C82D");
+    try std.testing.expectEqual(Srgb(u8).init(22, 200, 45), c);
+
+    const actual_err = Srgb(u8).initFromHexString("0x123456");
+    try std.testing.expectError(RgbError.InvalidHexString, actual_err);
 }
 
-test "HexRgb initFromString" {
-    var hex = try HexRgb.initFromString("C86432");
-    var expected: u24 = 0xc86432;
-    try std.testing.expectEqual(expected, hex.value);
+test "Srgb(u8) initFromHex" {
+    var c = Srgb(u8).initFromHex(0xc86432);
+    try std.testing.expectEqual(Srgb(u8).init(200, 100, 50), c);
 
-    const hex_str1 = "000000";
-    hex = try HexRgb.initFromString(hex_str1);
-    expected = 0x000000;
-    try std.testing.expectEqual(expected, hex.value);
+    c = Srgb(u8).initFromHex(0x000000);
+    try std.testing.expectEqual(Srgb(u8).init(0, 0, 0), c);
 
-    hex = try HexRgb.initFromString("#ffffff");
-    expected = 0xffffff;
-    try std.testing.expectEqual(expected, hex.value);
+    c = Srgb(u8).initFromHex(0xffffff);
+    try std.testing.expectEqual(Srgb(u8).init(255, 255, 255), c);
 
-    const hex_str2 = "#16C82D";
-    hex = try HexRgb.initFromString(hex_str2);
-    expected = 0x16c82d;
-    try std.testing.expectEqual(expected, hex.value);
-
-    // Should error when given a string not in "#RRGGBB" or "RRGGBB" format
-    const actual_err = HexRgb.initFromString("0x123456");
-    const expected_err = RgbError.InvalidHexString;
-    try std.testing.expectError(expected_err, actual_err);
+    c = Srgb(u8).initFromHex(0x16c82d);
+    try std.testing.expectEqual(Srgb(u8).init(22, 200, 45), c);
 }
 
-test "HexRgb initFromU8" {
-    var hex = HexRgb.initFromU8(200, 100, 50);
-    var expected: u24 = 0xc86432;
-    try std.testing.expectEqual(expected, hex.value);
-
-    hex = HexRgb.initFromU8(0, 0, 0);
-    expected = 0x000000;
-    try std.testing.expectEqual(expected, hex.value);
-
-    hex = HexRgb.initFromU8(255, 255, 255);
-    expected = 0xffffff;
-    try std.testing.expectEqual(expected, hex.value);
-
-    hex = HexRgb.initFromU8(22, 200, 45);
-    expected = 0x16c82d;
-    try std.testing.expectEqual(expected, hex.value);
-}
-
-test "HexRgb initFromU24" {
-    var hex = HexRgb.initFromU24(0xc86432);
-    var expected: u24 = 0xc86432;
-    try std.testing.expectEqual(expected, hex.value);
-
-    hex = HexRgb.initFromU24(0x000000);
-    expected = 0x000000;
-    try std.testing.expectEqual(expected, hex.value);
-
-    hex = HexRgb.initFromU24(0xffffff);
-    expected = 0xffffff;
-    try std.testing.expectEqual(expected, hex.value);
-
-    hex = HexRgb.initFromU24(0x16c82d);
-    expected = 0x16c82d;
-    try std.testing.expectEqual(expected, hex.value);
-}
-
-test "HexRgb initFromSrgb(u8)" {
-    var srgb_val = Srgb(u8).init(200, 100, 50);
-    var hex = HexRgb.initFromSrgb(srgb_val);
-    var expected: u24 = 0xc86432;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(u8).init(0, 0, 0);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0x000000;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(u8).init(255, 255, 255);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0xffffff;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(u8).init(22, 200, 45);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0x16c82d;
-    try std.testing.expectEqual(expected, hex.value);
-}
-
-test "HexRgb initFromSrgb(f32)" {
-    var srgb_val = Srgb(f32).init(0.784, 0.392, 0.196);
-    var hex = HexRgb.initFromSrgb(srgb_val);
-    var expected: u24 = 0xc86432;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(f32).init(0, 0, 0);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0x000000;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(f32).init(1, 1, 1);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0xffffff;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(f32).init(0.086, 0.784, 0.176);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0x16c82d;
-    try std.testing.expectEqual(expected, hex.value);
-}
-
-test "HexRgb initFromSrgb(f64)" {
-    var srgb_val = Srgb(f64).init(0.784, 0.392, 0.196);
-    var hex = HexRgb.initFromSrgb(srgb_val);
-    var expected: u24 = 0xc86432;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(f64).init(0, 0, 0);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0x000000;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(f64).init(1, 1, 1);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0xffffff;
-    try std.testing.expectEqual(expected, hex.value);
-
-    srgb_val = Srgb(f64).init(0.086, 0.784, 0.176);
-    hex = HexRgb.initFromSrgb(srgb_val);
-    expected = 0x16c82d;
-    try std.testing.expectEqual(expected, hex.value);
-}
-
-test "HexRgb toSrgb(u8)" {
-    var hex = HexRgb.initFromU24(0xc86432);
-    var srgb_val = hex.toSrgb(u8);
-    var expected = Srgb(u8).init(200, 100, 50);
-    try std.testing.expectEqual(expected, srgb_val);
-
-    hex = HexRgb.initFromU24(0x000000);
-    srgb_val = hex.toSrgb(u8);
-    expected = Srgb(u8).init(0, 0, 0);
-    try std.testing.expectEqual(expected, srgb_val);
-
-    hex = HexRgb.initFromU24(0xffffff);
-    srgb_val = hex.toSrgb(u8);
-    expected = Srgb(u8).init(255, 255, 255);
-    try std.testing.expectEqual(expected, srgb_val);
-
-    hex = HexRgb.initFromU24(0x16c82d);
-    srgb_val = hex.toSrgb(u8);
-    expected = Srgb(u8).init(22, 200, 45);
-    try std.testing.expectEqual(expected, srgb_val);
-}
-
-test "HexRgb toSrgb(f32)" {
+test "Srgb(f32) initFromHex" {
     const tolerance = 0.002;
 
-    var hex = HexRgb.initFromU24(0xc86432);
-    var srgb_val = hex.toSrgb(f32);
-    var expected = Srgb(f32).init(0.784, 0.392, 0.196);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    var c = Srgb(f32).initFromHex(0xc86432);
+    try validation.expectColorsApproxEqAbs(Srgb(f32).init(0.784, 0.392, 0.196), c, tolerance);
 
-    hex = HexRgb.initFromU24(0x000000);
-    srgb_val = hex.toSrgb(f32);
-    expected = Srgb(f32).init(0, 0, 0);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    c = Srgb(f32).initFromHex(0x000000);
+    try std.testing.expectEqual(Srgb(f32).init(0, 0, 0), c);
 
-    hex = HexRgb.initFromU24(0xffffff);
-    srgb_val = hex.toSrgb(f32);
-    expected = Srgb(f32).init(1, 1, 1);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    c = Srgb(f32).initFromHex(0xffffff);
+    try std.testing.expectEqual(Srgb(f32).init(1, 1, 1), c);
 
-    hex = HexRgb.initFromU24(0x16c82d);
-    srgb_val = hex.toSrgb(f32);
-    expected = Srgb(f32).init(0.086, 0.784, 0.176);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    c = Srgb(f32).initFromHex(0x16c82d);
+    try validation.expectColorsApproxEqAbs(Srgb(f32).init(0.086, 0.784, 0.176), c, tolerance);
 }
 
-test "HexRgb toSrgb(f64)" {
+test "Srgb(f64) initFromHex" {
     const tolerance = 0.000002;
 
-    var hex = HexRgb.initFromU24(0xc86432);
-    var srgb_val = hex.toSrgb(f64);
-    var expected = Srgb(f64).init(0.784314, 0.392157, 0.196078);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    var c = Srgb(f64).initFromHex(0xc86432);
+    try validation.expectColorsApproxEqAbs(Srgb(f64).init(0.784314, 0.392157, 0.196078), c, tolerance);
 
-    hex = HexRgb.initFromU24(0x000000);
-    srgb_val = hex.toSrgb(f64);
-    expected = Srgb(f64).init(0, 0, 0);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    c = Srgb(f64).initFromHex(0x000000);
+    try std.testing.expectEqual(Srgb(f64).init(0, 0, 0), c);
 
-    hex = HexRgb.initFromU24(0xffffff);
-    srgb_val = hex.toSrgb(f64);
-    expected = Srgb(f64).init(1, 1, 1);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    c = Srgb(f64).initFromHex(0xffffff);
+    try std.testing.expectEqual(Srgb(f64).init(1, 1, 1), c);
 
-    hex = HexRgb.initFromU24(0x16c82d);
-    srgb_val = hex.toSrgb(f64);
-    expected = Srgb(f64).init(0.086275, 0.784314, 0.176471);
-    try validation.expectColorsApproxEqAbs(expected, srgb_val, tolerance);
+    c = Srgb(f64).initFromHex(0x16c82d);
+    try validation.expectColorsApproxEqAbs(Srgb(f64).init(0.086275, 0.784314, 0.176471), c, tolerance);
+}
+
+test "Srgb(u8) toHex" {
+    try std.testing.expectEqual(@as(u24, 0xc86432), Srgb(u8).init(200, 100, 50).toHex());
+    try std.testing.expectEqual(@as(u24, 0x000000), Srgb(u8).init(0, 0, 0).toHex());
+    try std.testing.expectEqual(@as(u24, 0xffffff), Srgb(u8).init(255, 255, 255).toHex());
+    try std.testing.expectEqual(@as(u24, 0x16c82d), Srgb(u8).init(22, 200, 45).toHex());
+}
+
+test "Srgb(f32) toHex" {
+    try std.testing.expectEqual(@as(u24, 0xc86432), Srgb(f32).init(0.784, 0.392, 0.196).toHex());
+    try std.testing.expectEqual(@as(u24, 0x000000), Srgb(f32).init(0, 0, 0).toHex());
+    try std.testing.expectEqual(@as(u24, 0xffffff), Srgb(f32).init(1, 1, 1).toHex());
+    try std.testing.expectEqual(@as(u24, 0x16c82d), Srgb(f32).init(0.086, 0.784, 0.176).toHex());
+}
+
+test "Srgb(f64) toHex" {
+    try std.testing.expectEqual(@as(u24, 0xc86432), Srgb(f64).init(0.784, 0.392, 0.196).toHex());
+    try std.testing.expectEqual(@as(u24, 0x000000), Srgb(f64).init(0, 0, 0).toHex());
+    try std.testing.expectEqual(@as(u24, 0xffffff), Srgb(f64).init(1, 1, 1).toHex());
+    try std.testing.expectEqual(@as(u24, 0x16c82d), Srgb(f64).init(0.086, 0.784, 0.176).toHex());
+}
+
+test "Srgb hex round-trip" {
+    // u8 -> hex -> u8
+    const original_u8 = Srgb(u8).init(200, 100, 50);
+    try std.testing.expectEqual(original_u8, Srgb(u8).initFromHex(original_u8.toHex()));
+
+    // f32 -> hex -> f32 (lossy due to u8 quantization)
+    const tolerance = 0.002;
+    const original_f32 = Srgb(f32).init(0.784, 0.392, 0.196);
+    const round_tripped = Srgb(f32).initFromHex(original_f32.toHex());
+    try validation.expectColorsApproxEqAbs(original_f32, round_tripped, tolerance);
 }
