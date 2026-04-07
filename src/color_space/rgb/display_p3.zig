@@ -35,7 +35,7 @@ const XYZ_TO_P3: [3][3]f32 = .{
 /// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
 pub fn DisplayP3(comptime T: type) type {
-    validation.assertRgbType(T);
+    validation.assertFloatType(T);
 
     return struct {
         const Self = @This();
@@ -122,7 +122,7 @@ pub fn DisplayP3(comptime T: type) type {
 /// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
 /// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
 pub fn LinearDisplayP3(comptime T: type) type {
-    validation.assertRgbType(T);
+    validation.assertFloatType(T);
 
     return struct {
         const Self = @This();

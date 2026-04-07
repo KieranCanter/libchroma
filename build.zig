@@ -25,6 +25,11 @@ pub fn build(b: *std.Build) !void {
     });
     b.installArtifact(staticLib);
     b.installArtifact(dynLib);
+    b.installDirectory(.{
+        .source_dir = b.path("include"),
+        .install_dir = .header,
+        .install_subdir = "",
+    });
 
     const mod_tests = b.addTest(.{
         .root_module = mod,

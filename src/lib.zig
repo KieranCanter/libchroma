@@ -5,6 +5,11 @@
 const std = @import("std");
 const validation = @import("validation.zig");
 
+// C ABI exports (pull in so export fn symbols are included in the library)
+comptime {
+    _ = @import("c/chroma.zig");
+}
+
 const alpha = @import("alpha.zig");
 const cmyk = @import("color_space/cmyk.zig");
 const hsi = @import("color_space/hsi.zig");

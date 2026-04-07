@@ -94,11 +94,18 @@ pub fn Srgb(comptime T: type) type {
         }
 
         pub fn fromXyz(xyz: anytype) Self {
-            return LinearSrgb(T).fromXyz(xyz).toSrgb();
+            const srgb_f = LinearSrgb(F).fromXyz(xyz).toSrgb();
+            if (T == F) return srgb_f;
+            // T is u8, F is f32 — convert float sRGB to u8
+            return Self.init(
+                rgb.fromFloat(T, srgb_f.r),
+                rgb.fromFloat(T, srgb_f.g),
+                rgb.fromFloat(T, srgb_f.b),
+            );
         }
 
-        pub fn toLinear(self: Self) LinearSrgb(T) {
-            return LinearSrgb(T).init(
+        pub fn toLinear(self: Self) LinearSrgb(F) {
+            return LinearSrgb(F).init(
                 gammaToLinear(self.r),
                 gammaToLinear(self.g),
                 gammaToLinear(self.b),
@@ -107,7 +114,7 @@ pub fn Srgb(comptime T: type) type {
 
         // Formulae for sRGB <-> Linear conversions:
         // https://entropymine.com/imageworsener/srgbformula/
-        fn gammaToLinear(val: T) T {
+        fn gammaToLinear(val: T) F {
             var fl = rgb.toFloat(F, val);
             const sign: F = if (fl < 0) -1 else 1;
             const abs: F = fl * sign;
@@ -118,7 +125,7 @@ pub fn Srgb(comptime T: type) type {
                 fl = sign * std.math.pow(F, (abs + 0.055) / 1.055, 2.4);
             }
 
-            return rgb.fromFloat(T, fl);
+            return fl;
         }
 
         pub fn toCmyk(self: Self) Cmyk(F) {
@@ -145,16 +152,15 @@ pub fn Srgb(comptime T: type) type {
 
 /// Type to hold a linearized sRGB value.
 ///
-/// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
+/// r: red value in [0.0, 1.0]
+/// g: green value in [0.0, 1.0]
+/// b: blue value in [0.0, 1.0]
 pub fn LinearSrgb(comptime T: type) type {
-    validation.assertRgbType(T);
+    validation.assertFloatType(T);
 
     return struct {
         const Self = @This();
         pub const Backing = T;
-        const F = validation.rgbToFloatType(T);
 
         r: T,
         g: T,
@@ -176,7 +182,7 @@ pub fn LinearSrgb(comptime T: type) type {
             try writer.print("LinearSrgb({s})({f})", .{ @typeName(T), self });
         }
 
-        pub fn toXyz(self: Self) Xyz(F) {
+        pub fn toXyz(self: Self) Xyz(T) {
             return rgb.linearToXyz(SRGB_TO_XYZ, self);
         }
 
@@ -192,20 +198,18 @@ pub fn LinearSrgb(comptime T: type) type {
             );
         }
 
-        // Formulae for sRGB <-> Linear conversions:
-        // https://entropymine.com/imageworsener/srgbformula/
         fn linearToGamma(val: T) T {
-            var fl = rgb.toFloat(F, val);
-            const sign: F = if (fl < 0) -1 else 1;
-            const abs: F = fl * sign;
+            var fl = val;
+            const sign: T = if (fl < 0) -1 else 1;
+            const abs: T = fl * sign;
 
             if (fl <= 0.0031308) {
                 fl *= 12.92;
             } else {
-                fl = sign * (1.055 * std.math.pow(F, abs, 1.0 / 2.4) - 0.055);
+                fl = sign * (1.055 * std.math.pow(T, abs, 1.0 / 2.4) - 0.055);
             }
 
-            return rgb.fromFloat(T, fl);
+            return fl;
         }
     };
 }
