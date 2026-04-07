@@ -1,5 +1,6 @@
 const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const validation = @import("../validation.zig");
 const color_formatter = @import("../color_formatter.zig");
 
 const Hsl = @import("hsl.zig").Hsl;
@@ -51,13 +52,14 @@ pub fn Hsi(comptime T: type) type {
             }
 
             const h = self.h.?;
-            const hprime = @as(u8, @floor(h / 60.0));
-            const z = 1.0 - @abs(@mod(hprime, 2) - 1.0);
+            const hprime = h / 60.0;
+            const sector: u8 = @intFromFloat(@floor(hprime));
+            const z = 1.0 - @abs(@mod(hprime, 2.0) - 1.0);
             const chroma = (3.0 * self.i * self.s) / (1.0 + z);
             const x = chroma * z;
             const m = self.i * (1.0 - self.s);
 
-            return switch (hprime) {
+            return switch (sector) {
                 0, 6 => Srgb(T).init(chroma + m, x + m, m),
                 1 => Srgb(T).init(x + m, chroma + m, m),
                 2 => Srgb(T).init(m, chroma + m, x + m),
@@ -68,4 +70,28 @@ pub fn Hsi(comptime T: type) type {
             };
         }
     };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+const tol = 0.002;
+
+test "Hsi(f32) toSrgb" {
+    // HSI(20, 0.571, 0.467) ~ sRGB(0.8, 0.4, 0.2)
+    const c = Hsi(f32).init(20.0, 0.571, 0.467).toSrgb();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.800), c.r, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.400), c.g, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), c.b, tol);
+
+    // Achromatic
+    const gray = Hsi(f32).init(null, 0, 0.5).toSrgb();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), gray.r, tol);
+}
+
+test "Hsi(f32) <-> XYZ round-trip" {
+    const original = Hsi(f32).init(20.0, 0.571, 0.467);
+    const result = Hsi(f32).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol);
 }

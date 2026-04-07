@@ -1,5 +1,6 @@
 const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const validation = @import("../validation.zig");
 const color_formatter = @import("../color_formatter.zig");
 
 const Hsv = @import("hsv.zig").Hsv;
@@ -52,16 +53,17 @@ pub fn Hwb(comptime T: type) type {
 
             const h = self.h.?;
             const v = 1.0 - self.b;
-            const hprime = @as(u8, @floor(h / 60.0));
-            var f = (h / 60.0) - hprime;
+            const hprime = h / 60.0;
+            const sector: u8 = @intFromFloat(@floor(hprime));
+            var f = hprime - @floor(hprime);
 
-            if (hprime & 1) { // hprime is odd
+            if (sector & 1 != 0) { // sector is odd
                 f = 1 - f;
             }
 
-            const n = self.w + f * (v - self.w); // linear interpolation between self.w and v
+            const n = self.w + f * (v - self.w);
 
-            return switch (hprime) {
+            return switch (sector) {
                 0, 6 => Srgb(T).init(v, n, self.w),
                 1 => Srgb(T).init(n, v, self.w),
                 2 => Srgb(T).init(self.w, v, n),
@@ -80,4 +82,34 @@ pub fn Hwb(comptime T: type) type {
             return Hsv(T).init(self.h, s, v);
         }
     };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+const tol = 0.002;
+
+test "Hwb(f32) toSrgb" {
+    const c = Hwb(f32).init(20.0, 0.2, 0.2).toSrgb();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.800), c.r, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.400), c.g, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), c.b, tol);
+
+    // Achromatic (null hue) -> gray based on blackness
+    const gray = Hwb(f32).init(null, 0.3, 0.3).toSrgb();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.7), gray.r, tol);
+}
+
+test "Hwb(f32) <-> XYZ round-trip" {
+    const original = Hwb(f32).init(20.0, 0.2, 0.2);
+    const result = Hwb(f32).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol);
+}
+
+test "Hwb(f32) toHsv" {
+    const hsv = Hwb(f32).init(20.0, 0.2, 0.2).toHsv();
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), hsv.h.?, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.750), hsv.s, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.800), hsv.v, tol);
 }

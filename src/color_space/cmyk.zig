@@ -155,3 +155,42 @@ test "Cmyk formatting" {
     alloc.free(act_raw);
     alloc.free(act_pretty);
 }
+
+const tol = 0.002;
+
+test "Cmyk(f32) toSrgb" {
+    const c = Cmyk(f32).init(0.0, 0.5, 0.75, 0.2).toSrgb();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.800), c.r, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.400), c.g, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), c.b, tol);
+
+    // Full black (K=1)
+    const black = Cmyk(f32).init(0, 0, 0, 1).toSrgb();
+    try std.testing.expectEqual(Srgb(f32).init(0, 0, 0), black);
+}
+
+test "Cmyk(f32) <-> XYZ round-trip" {
+    const original = Cmyk(f32).init(0.0, 0.5, 0.75, 0.2);
+    const result = Cmyk(f32).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol);
+}
+
+test "Cmyk gcr" {
+    var c = Cmyk(f32).init(0.4, 0.3, 0.5, 0.1);
+    try c.gcr(1.0);
+    // gray = min(0.4, 0.3, 0.5) * 1.0 = 0.3
+    try std.testing.expectApproxEqAbs(@as(f32, 0.1), c.c, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), c.m, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.2), c.y, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.4), c.k, tol);
+}
+
+test "Cmyk uca" {
+    var c = Cmyk(f32).init(0.1, 0.0, 0.2, 0.4);
+    try c.uca(0.5);
+    // removed = 0.4 * 0.5 = 0.2
+    try std.testing.expectApproxEqAbs(@as(f32, 0.3), c.c, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.2), c.m, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.4), c.y, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.2), c.k, tol);
+}

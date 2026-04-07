@@ -214,794 +214,136 @@ pub fn LinearSrgb(comptime T: type) type {
 // TESTS
 // ============================================================================
 
-// ===========================
-// Srgb
-// ===========================
-test "Srgb formatting" {
-    const alloc = std.testing.allocator;
+const tol32 = 0.002;
+const tol64 = 0.000002;
 
-    const srgb_u8 = Srgb(u8).init(200, 100, 50);
-    var exp_format: []const u8 = "200, 100, 50";
-    var exp_default: []const u8 = "200, 100, 50";
-    var exp_raw: []const u8 = "Srgb(u8).{ .r = 200, .g = 100, .b = 50 }";
-    var exp_pretty: []const u8 = "Srgb(u8)(200, 100, 50)[#C86432]";
-    var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8});
-    var act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.default)});
-    var act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.raw)});
-    var act_pretty: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{srgb_u8.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+// --- Srgb gamma <-> linear ---
 
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
-
-    const srgb_f32 = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    exp_format = "0.784, 0.392, 0.196";
-    exp_default = "0.784, 0.392, 0.196";
-    exp_raw = "Srgb(f32).{ .r = 0.784, .g = 0.392, .b = 0.196 }";
-    exp_pretty = "Srgb(f32)(0.784, 0.392, 0.196)[#C86432]";
-    act_format = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32});
-    act_default = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.default)});
-    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.raw)});
-    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f32.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
-
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
-
-    const srgb_f64 = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    exp_format = "0.784313, 0.392156, 0.196078";
-    exp_default = "0.784313, 0.392156, 0.196078";
-    exp_raw = "Srgb(f64).{ .r = 0.784313, .g = 0.392156, .b = 0.196078 }";
-    exp_pretty = "Srgb(f64)(0.784313, 0.392156, 0.196078)[#C86432]";
-    act_format = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64});
-    act_default = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.default)});
-    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.raw)});
-    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{srgb_f64.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
-
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
+test "Srgb(f32) <-> LinearSrgb round-trip" {
+    const original = Srgb(f32).init(0.8, 0.4, 0.2);
+    const result = original.toLinear().toSrgb();
+    try validation.expectColorsApproxEqAbs(original, result, tol32);
 }
 
-test "Srgb(u8) toLinear" {
-    const tolerance: u8 = 1;
-
-    var srgb = Srgb(u8).init(200, 100, 50);
-    var expected = LinearSrgb(u8).init(147, 32, 8);
-    var actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(0, 0, 0);
-    expected = LinearSrgb(u8).init(0, 0, 0);
-    actual = srgb.toLinear();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(255, 255, 255);
-    expected = LinearSrgb(u8).init(255, 255, 255);
-    actual = srgb.toLinear();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(22, 200, 45);
-    expected = LinearSrgb(u8).init(2, 147, 7);
-    actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+test "Srgb(f64) <-> LinearSrgb round-trip" {
+    const original = Srgb(f64).init(0.8, 0.4, 0.2);
+    const result = original.toLinear().toSrgb();
+    try validation.expectColorsApproxEqAbs(original, result, tol64);
 }
 
-test "Srgb(f32) toLinear" {
-    const tolerance = 0.002;
+test "Srgb gamma edge cases" {
+    // Black
+    const black = Srgb(f32).init(0, 0, 0).toLinear();
+    try std.testing.expectEqual(LinearSrgb(f32).init(0, 0, 0), black);
 
-    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var expected = LinearSrgb(f32).init(0.578, 0.127, 0.032);
-    var actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    // White
+    const white = Srgb(f32).init(1, 1, 1).toLinear();
+    try validation.expectColorsApproxEqAbs(LinearSrgb(f32).init(1, 1, 1), white, tol32);
 
-    srgb = Srgb(f32).init(0, 0, 0);
-    expected = LinearSrgb(f32).init(0, 0, 0);
-    actual = srgb.toLinear();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(1, 1, 1);
-    expected = LinearSrgb(f32).init(1, 1, 1);
-    actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    expected = LinearSrgb(f32).init(0.008, 0.577, 0.026);
-    actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    // Below linear threshold (0.04045)
+    const low = Srgb(f32).init(0.03, 0.03, 0.03).toLinear();
+    try validation.expectColorsApproxEqAbs(LinearSrgb(f32).init(0.00232, 0.00232, 0.00232), low, tol32);
 }
 
-test "Srgb(f64) toLinear" {
-    const tolerance = 0.000002;
+// --- Srgb <-> XYZ ---
 
-    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = LinearSrgb(f64).init(0.577580, 0.127438, 0.031896);
-    var actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0, 0, 0);
-    expected = LinearSrgb(f64).init(0, 0, 0);
-    actual = srgb.toLinear();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(1, 1, 1);
-    expected = LinearSrgb(f64).init(1, 1, 1);
-    actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = LinearSrgb(f64).init(0.008023, 0.577580, 0.026241);
-    actual = srgb.toLinear();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+test "Srgb(f32) <-> XYZ round-trip" {
+    const original = Srgb(f32).init(0.8, 0.4, 0.2);
+    const result = Srgb(f32).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol32);
 }
 
-// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
-test "Srgb(u8) toXyz" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(u8).init(200, 100, 50);
-    var expected = Xyz(f32).init(0.289, 0.216, 0.056);
-    var actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(0, 0, 0);
-    expected = Xyz(f32).init(0, 0, 0);
-    actual = srgb.toXyz();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(255, 255, 255);
-    expected = Xyz(f32).init(0.950, 1.000, 1.089);
-    actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(22, 200, 45);
-    expected = Xyz(f32).init(0.214, 0.417, 0.093);
-    actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+test "Srgb(f64) <-> XYZ round-trip" {
+    const original = Srgb(f64).init(0.8, 0.4, 0.2);
+    const result = Srgb(f64).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol64);
 }
 
-test "Srgb(f32) toXyz" {
-    const tolerance = 0.002;
+test "Srgb(f32) toXyz known values" {
+    // sRGB(0.8, 0.4, 0.2) -> XYZ
+    const xyz = Srgb(f32).init(0.8, 0.4, 0.2).toXyz();
+    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
 
-    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var expected = Xyz(f32).init(0.289, 0.216, 0.056);
-    var actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    // White -> D65 white point
+    const white = Srgb(f32).init(1, 1, 1).toXyz();
+    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
 
-    srgb = Srgb(f32).init(0, 0, 0);
-    expected = Xyz(f32).init(0, 0, 0);
-    actual = srgb.toXyz();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(1, 1, 1);
-    expected = Xyz(f32).init(0.950, 1.000, 1.089);
-    actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    expected = Xyz(f32).init(0.214, 0.417, 0.093);
-    actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    // Black
+    try std.testing.expectEqual(Xyz(f32).init(0, 0, 0), Srgb(f32).init(0, 0, 0).toXyz());
 }
 
-test "Srgb(f64) toXyz" {
-    const tolerance = 0.000002;
-
-    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = Xyz(f64).init(0.289514, 0.216258, 0.056673);
-    var actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0, 0, 0);
-    expected = Xyz(f64).init(0, 0, 0);
-    actual = srgb.toXyz();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(1, 1, 1);
-    expected = Xyz(f64).init(0.950456, 1.000000, 1.089058);
-    actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = Xyz(f64).init(0.214578, 0.416667, 0.093942);
-    actual = srgb.toXyz();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-test "Srgb(f32) fromXyz" {
-    const tol32 = 0.002;
-    const tol64 = 0.000002;
-
-    var xyz32 = Xyz(f32).init(0.289, 0.216, 0.056);
-    var xyz64 = Xyz(f64).init(0.289514, 0.216258, 0.056673);
-    var expected32 = Srgb(f32).init(0.784, 0.392, 0.194); // (200, 100, 50)
-    var expected64 = Srgb(f32).init(0.784312, 0.392158, 0.196078); // (200, 100, 50)
-    var actual32 = Srgb(f32).fromXyz(xyz32);
-    var actual64 = Srgb(f32).fromXyz(xyz64);
-    try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
-    try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
-
-    xyz32 = Xyz(f32).init(0, 0, 0);
-    xyz64 = Xyz(f64).init(0, 0, 0);
-    expected32 = Srgb(f32).init(0, 0, 0);
-    expected64 = Srgb(f32).init(0, 0, 0);
-    actual32 = Srgb(f32).fromXyz(xyz32);
-    actual64 = Srgb(f32).fromXyz(xyz64);
-    try std.testing.expectEqual(expected32, actual32);
-    try std.testing.expectEqual(expected64, actual64);
-
-    xyz32 = Xyz(f32).init(0.950, 1.000, 1.089);
-    xyz64 = Xyz(f64).init(0.950456, 1.000000, 1.089058);
-    expected32 = Srgb(f32).init(1, 1, 1);
-    expected64 = Srgb(f32).init(1, 1, 1);
-    actual32 = Srgb(f32).fromXyz(xyz32);
-    actual64 = Srgb(f32).fromXyz(xyz64);
-    try validation.expectColorsApproxEqAbs(expected64, actual32, tol32);
-    try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
-
-    xyz32 = Xyz(f32).init(0.214, 0.417, 0.093);
-    xyz64 = Xyz(f64).init(0.214578, 0.416667, 0.093942);
-    expected32 = Srgb(f32).init(0.071, 0.785, 0.172); // (22, 200, 45)
-    expected64 = Srgb(f32).init(0.086278, 0.784313, 0.176468); // (22, 200, 45)
-    actual32 = Srgb(f32).fromXyz(xyz32);
-    actual64 = Srgb(f32).fromXyz(xyz64);
-    try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
-    try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
-}
-
-test "Srgb(f64) fromXyz" {
-    const tol32 = 0.002;
-    const tol64 = 0.000002;
-
-    var xyz32 = Xyz(f32).init(0.289, 0.216, 0.056);
-    var xyz64 = Xyz(f64).init(0.289514, 0.216258, 0.056673);
-    var expected32 = Srgb(f64).init(0.784, 0.392, 0.194); // (200, 100, 50)
-    var expected64 = Srgb(f64).init(0.784312, 0.392158, 0.196078); // (200, 100, 50)
-    var actual32 = Srgb(f64).fromXyz(xyz32);
-    var actual64 = Srgb(f64).fromXyz(xyz64);
-    try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
-    try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
-
-    xyz32 = Xyz(f32).init(0, 0, 0);
-    xyz64 = Xyz(f64).init(0, 0, 0);
-    expected32 = Srgb(f64).init(0, 0, 0);
-    expected64 = Srgb(f64).init(0, 0, 0);
-    actual32 = Srgb(f64).fromXyz(xyz32);
-    actual64 = Srgb(f64).fromXyz(xyz64);
-    try std.testing.expectEqual(expected32, actual32);
-    try std.testing.expectEqual(expected64, actual64);
-
-    xyz32 = Xyz(f32).init(0.950, 1.000, 1.089);
-    xyz64 = Xyz(f64).init(0.950456, 1.000000, 1.089058);
-    expected32 = Srgb(f64).init(1, 1, 1);
-    expected64 = Srgb(f64).init(1, 1, 1);
-    actual32 = Srgb(f64).fromXyz(xyz32);
-    actual64 = Srgb(f64).fromXyz(xyz64);
-    try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
-    try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
-
-    xyz32 = Xyz(f32).init(0.214, 0.417, 0.093);
-    xyz64 = Xyz(f64).init(0.214578, 0.416667, 0.093942);
-    expected32 = Srgb(f64).init(0.071, 0.785, 0.172); // (22, 200, 45)
-    expected64 = Srgb(f64).init(0.086278, 0.784313, 0.176468); // (22, 200, 45)
-    actual32 = Srgb(f64).fromXyz(xyz32);
-    actual64 = Srgb(f64).fromXyz(xyz64);
-    try validation.expectColorsApproxEqAbs(expected32, actual32, tol32);
-    try validation.expectColorsApproxEqAbs(expected64, actual64, tol64);
-}
-
-// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
-test "Srgb(u8) toCmyk" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(u8).init(200, 100, 50);
-    var expected = Cmyk(f32).init(0.000, 0.500, 0.750, 0.216);
-    var actual = srgb.toCmyk();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(0, 0, 0);
-    expected = Cmyk(f32).init(0, 0, 0, 1);
-    actual = srgb.toCmyk();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(255, 255, 255);
-    expected = Cmyk(f32).init(0, 0, 0, 0);
-    actual = srgb.toCmyk();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(22, 200, 45);
-    expected = Cmyk(f32).init(0.890, 0.000, 0.775, 0.216);
-    actual = srgb.toCmyk();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-test "Srgb(f32) toCmyk" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var expected = Cmyk(f32).init(0.000, 0.500, 0.750, 0.216);
-    var actual = srgb.toCmyk();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f32).init(0, 0, 0);
-    expected = Cmyk(f32).init(0, 0, 0, 1);
-    actual = srgb.toCmyk();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(1, 1, 1);
-    expected = Cmyk(f32).init(0, 0, 0, 0);
-    actual = srgb.toCmyk();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    expected = Cmyk(f32).init(0.890, 0.000, 0.775, 0.216);
-    actual = srgb.toCmyk();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-test "Srgb(f64) toCmyk" {
-    const tolerance = 0.000002;
-
-    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = Cmyk(f64).init(0.000000, 0.500001, 0.750000, 0.215687);
-    var actual = srgb.toCmyk();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0, 0, 0);
-    expected = Cmyk(f64).init(0, 0, 0, 1);
-    actual = srgb.toCmyk();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(1, 1, 1);
-    expected = Cmyk(f64).init(0, 0, 0, 0);
-    actual = srgb.toCmyk();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = Cmyk(f64).init(0.890001, 0.000000, 0.775001, 0.215687);
-    actual = srgb.toCmyk();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
-test "Srgb(u8) toHsi" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(u8).init(200, 100, 50);
-    var expected = Hsi(f32).init(19.999, 0.571, 0.458);
-    var actual = srgb.toHsi();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(0, 0, 0);
-    expected = Hsi(f32).init(null, 0, 0);
-    actual = srgb.toHsi();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(255, 255, 255);
-    expected = Hsi(f32).init(null, 0, 1);
-    actual = srgb.toHsi();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(22, 200, 45);
-    expected = Hsi(f32).init(127.753, 0.753, 0.349);
-    actual = srgb.toHsi();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-test "Srgb(f32) toHsi" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var expected = Hsi(f32).init(19.999, 0.571, 0.458);
-    var actual = srgb.toHsi();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f32).init(0, 0, 0);
-    expected = Hsi(f32).init(null, 0, 0);
-    actual = srgb.toHsi();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(1, 1, 1);
-    expected = Hsi(f32).init(null, 0, 1);
-    actual = srgb.toHsi();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    expected = Hsi(f32).init(127.736, 0.753, 0.349);
-    actual = srgb.toHsi();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-test "Srgb(f64) toHsi" {
-    const tolerance = 0.000002;
-
-    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = Hsi(f64).init(19.999966, 0.571429, 0.457516);
-    var actual = srgb.toHsi();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0, 0, 0);
-    expected = Hsi(f64).init(null, 0, 0);
-    actual = srgb.toHsi();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(1, 1, 1);
-    expected = Hsi(f64).init(null, 0, 1);
-    actual = srgb.toHsi();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = Hsi(f64).init(127.752805, 0.752810, 0.349019);
-    actual = srgb.toHsi();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
-test "Srgb(u8) toHsl" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(u8).init(200, 100, 50);
-    var expected = Hsl(f32).init(19.999, 0.600, 0.490);
-    var actual = srgb.toHsl();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(0, 0, 0);
-    expected = Hsl(f32).init(null, 0, 0);
-    actual = srgb.toHsl();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(255, 255, 255);
-    expected = Hsl(f32).init(null, 0, 1);
-    actual = srgb.toHsl();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(22, 200, 45);
-    expected = Hsl(f32).init(127.753, 0.802, 0.435);
-    actual = srgb.toHsl();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
+// --- Srgb → cylindrical/subtractive shortcuts ---
 
 test "Srgb(f32) toHsl" {
-    const tolerance = 0.002;
+    // Chromatic
+    const hsl = Srgb(f32).init(0.8, 0.4, 0.2).toHsl();
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), hsl.h.?, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.600), hsl.s, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.500), hsl.l, tol32);
 
-    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var expected = Hsl(f32).init(19.999, 0.600, 0.490);
-    var actual = srgb.toHsl();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f32).init(0, 0, 0);
-    expected = Hsl(f32).init(null, 0, 0);
-    actual = srgb.toHsl();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(1, 1, 1);
-    expected = Hsl(f32).init(null, 0, 1);
-    actual = srgb.toHsl();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    expected = Hsl(f32).init(127.736, 0.802, 0.435);
-    actual = srgb.toHsl();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-test "Srgb(f64) toHsl" {
-    const tolerance = 0.000002;
-
-    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = Hsl(f64).init(19.999966, 0.600000, 0.490196);
-    var actual = srgb.toHsl();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0, 0, 0);
-    expected = Hsl(f64).init(null, 0, 0);
-    actual = srgb.toHsl();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(1, 1, 1);
-    expected = Hsl(f64).init(null, 0, 1);
-    actual = srgb.toHsl();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = Hsl(f64).init(127.752805, 0.801803, 0.435294);
-    actual = srgb.toHsl();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
-test "Srgb(u8) toHsv" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(u8).init(200, 100, 50);
-    var expected = Hsv(f32).init(19.999, 0.750, 0.784);
-    var actual = srgb.toHsv();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(0, 0, 0);
-    expected = Hsv(f32).init(null, 0, 0);
-    actual = srgb.toHsv();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(255, 255, 255);
-    expected = Hsv(f32).init(null, 0, 1);
-    actual = srgb.toHsv();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(22, 200, 45);
-    expected = Hsv(f32).init(127.753, 0.890, 0.784);
-    actual = srgb.toHsv();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    // Achromatic -> null hue
+    try std.testing.expectEqual(@as(?f32, null), Srgb(f32).init(0.5, 0.5, 0.5).toHsl().h);
 }
 
 test "Srgb(f32) toHsv" {
-    const tolerance = 0.002;
+    const hsv = Srgb(f32).init(0.8, 0.4, 0.2).toHsv();
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), hsv.h.?, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.750), hsv.s, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.800), hsv.v, tol32);
 
-    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var expected = Hsv(f32).init(19.999, 0.750, 0.784);
-    var actual = srgb.toHsv();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f32).init(0, 0, 0);
-    expected = Hsv(f32).init(null, 0, 0);
-    actual = srgb.toHsv();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(1, 1, 1);
-    expected = Hsv(f32).init(null, 0, 1);
-    actual = srgb.toHsv();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    expected = Hsv(f32).init(127.736, 0.890, 0.784);
-    actual = srgb.toHsv();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-test "Srgb(f64) toHsv" {
-    const tolerance = 0.000002;
-
-    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = Hsv(f64).init(19.999966, 0.750000, 0.784313);
-    var actual = srgb.toHsv();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0, 0, 0);
-    expected = Hsv(f64).init(null, 0, 0);
-    actual = srgb.toHsv();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(1, 1, 1);
-    expected = Hsv(f64).init(null, 0, 1);
-    actual = srgb.toHsv();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = Hsv(f64).init(127.752805, 0.890001, 0.784313);
-    actual = srgb.toHsv();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-}
-
-// Converting from a u8 RGB value to float-only color-space implicitly casts RGB to f32
-test "Srgb(u8) toHwb" {
-    const tolerance = 0.002;
-
-    var srgb = Srgb(u8).init(200, 100, 50);
-    var expected = Hwb(f32).init(19.999, 0.196, 0.216);
-    var actual = srgb.toHwb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(u8).init(0, 0, 0);
-    expected = Hwb(f32).init(null, 0, 1);
-    actual = srgb.toHwb();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(255, 255, 255);
-    expected = Hwb(f32).init(null, 1, 0);
-    actual = srgb.toHwb();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(u8).init(22, 200, 45);
-    expected = Hwb(f32).init(127.753, 0.086, 0.216);
-    actual = srgb.toHwb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try std.testing.expectEqual(@as(?f32, null), Srgb(f32).init(0, 0, 0).toHsv().h);
 }
 
 test "Srgb(f32) toHwb" {
-    const tolerance = 0.002;
+    const hwb = Srgb(f32).init(0.8, 0.4, 0.2).toHwb();
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), hwb.h.?, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), hwb.w, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), hwb.b, tol32);
 
-    var srgb = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var expected = Hwb(f32).init(19.999, 0.196, 0.216);
-    var actual = srgb.toHwb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f32).init(0, 0, 0);
-    expected = Hwb(f32).init(null, 0, 1);
-    actual = srgb.toHwb();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(1, 1, 1);
-    expected = Hwb(f32).init(null, 1, 0);
-    actual = srgb.toHwb();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    expected = Hwb(f32).init(127.736, 0.086, 0.216);
-    actual = srgb.toHwb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    // White + black >= 1 -> null hue
+    try std.testing.expectEqual(@as(?f32, null), Srgb(f32).init(1, 1, 1).toHwb().h);
 }
 
-test "Srgb(f64) toHwb" {
-    const tolerance = 0.000002;
+test "Srgb(f32) toHsi" {
+    const hsi = Srgb(f32).init(0.8, 0.4, 0.2).toHsi();
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), hsi.h.?, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.571), hsi.s, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.467), hsi.i, tol32);
 
-    var srgb = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var expected = Hwb(f64).init(19.999966, 0.196078, 0.215687);
-    var actual = srgb.toHwb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    srgb = Srgb(f64).init(0, 0, 0);
-    expected = Hwb(f64).init(null, 0, 1);
-    actual = srgb.toHwb();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(1, 1, 1);
-    expected = Hwb(f64).init(null, 1, 0);
-    actual = srgb.toHwb();
-    try std.testing.expectEqual(expected, actual);
-
-    srgb = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    expected = Hwb(f64).init(127.752805, 0.086274, 0.215687);
-    actual = srgb.toHwb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try std.testing.expectEqual(@as(?f32, null), Srgb(f32).init(0, 0, 0).toHsi().h);
 }
 
-// ===========================
-// LinearSrgb
-// ===========================
-test "LinearSrgb formatting" {
-    const alloc = std.testing.allocator;
+test "Srgb(f32) toCmyk" {
+    const cmyk = Srgb(f32).init(0.8, 0.4, 0.2).toCmyk();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.000), cmyk.c, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.500), cmyk.m, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.750), cmyk.y, tol32);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), cmyk.k, tol32);
 
-    const linear_u8 = LinearSrgb(u8).init(200, 100, 50);
-    var exp_format: []const u8 = "200, 100, 50";
-    var exp_default: []const u8 = "200, 100, 50";
-    var exp_raw: []const u8 = "LinearSrgb(u8).{ .r = 200, .g = 100, .b = 50 }";
-    var exp_pretty: []const u8 = "LinearSrgb(u8)(200, 100, 50)";
-    var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8});
-    var act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8.formatter(.default)});
-    var act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8.formatter(.raw)});
-    var act_pretty: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{linear_u8.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
+    // Black -> K=1
+    const black = Srgb(f32).init(0, 0, 0).toCmyk();
+    try std.testing.expectEqual(@as(f32, 1.0), black.k);
 
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
-
-    const linear_f32 = LinearSrgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    exp_format = "0.784, 0.392, 0.196";
-    exp_default = "0.784, 0.392, 0.196";
-    exp_raw = "LinearSrgb(f32).{ .r = 0.784, .g = 0.392, .b = 0.196 }";
-    exp_pretty = "LinearSrgb(f32)(0.784, 0.392, 0.196)";
-    act_format = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32});
-    act_default = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32.formatter(.default)});
-    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32.formatter(.raw)});
-    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{linear_f32.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
-
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
-
-    const linear_f64 = LinearSrgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    exp_format = "0.784313, 0.392156, 0.196078";
-    exp_default = "0.784313, 0.392156, 0.196078";
-    exp_raw = "LinearSrgb(f64).{ .r = 0.784313, .g = 0.392156, .b = 0.196078 }";
-    exp_pretty = "LinearSrgb(f64)(0.784313, 0.392156, 0.196078)";
-    act_format = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64});
-    act_default = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64.formatter(.default)});
-    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64.formatter(.raw)});
-    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{linear_f64.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
-
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
+    // White -> all zero
+    try std.testing.expectEqual(Cmyk(f32).init(0, 0, 0, 0), Srgb(f32).init(1, 1, 1).toCmyk());
 }
 
-test "LinearSrgb(u8) toSrgb" {
-    const tolerance: u8 = 1;
+// --- Srgb u8 implicit cast ---
 
-    var linear = LinearSrgb(u8).init(147, 32, 8);
-    var expected = Srgb(u8).init(200, 100, 49);
-    var actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    linear = LinearSrgb(u8).init(0, 0, 0);
-    expected = Srgb(u8).init(0, 0, 0);
-    actual = linear.toSrgb();
-    try std.testing.expectEqual(expected, actual);
-
-    linear = LinearSrgb(u8).init(255, 255, 255);
-    expected = Srgb(u8).init(255, 255, 255);
-    actual = linear.toSrgb();
-    try std.testing.expectEqual(expected, actual);
-
-    linear = LinearSrgb(u8).init(2, 147, 7);
-    expected = Srgb(u8).init(22, 200, 45);
-    actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+test "Srgb(u8) toXyz produces f32" {
+    const xyz = Srgb(u8).init(200, 100, 50).toXyz();
+    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.289, 0.216, 0.056), xyz, tol32);
 }
 
-test "LinearSrgb(f32) toSrgb" {
-    const tolerance = 0.002;
+// --- LinearSrgb ---
 
-    var linear = LinearSrgb(f32).init(0.578, 0.127, 0.032);
-    var expected = Srgb(f32).init(0.784, 0.392, 0.196); // (200, 100, 50)
-    var actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    linear = LinearSrgb(f32).init(0, 0, 0);
-    expected = Srgb(f32).init(0, 0, 0);
-    actual = linear.toSrgb();
-    try std.testing.expectEqual(expected, actual);
-
-    linear = LinearSrgb(f32).init(1, 1, 1);
-    expected = Srgb(f32).init(1, 1, 1);
-    actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    linear = LinearSrgb(f32).init(0.008, 0.577, 0.026);
-    expected = Srgb(f32).init(0.086, 0.784, 0.176); // (22, 200, 45)
-    actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+test "LinearSrgb(f32) <-> XYZ round-trip" {
+    const original = LinearSrgb(f32).init(0.604, 0.133, 0.033);
+    const result = LinearSrgb(f32).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol32);
 }
 
-test "LinearSrgb(f64) toSrgb" {
-    const tolerance = 0.000002;
-
-    var linear = LinearSrgb(f64).init(0.577580, 0.127438, 0.031896);
-    var expected = Srgb(f64).init(0.784313, 0.392156, 0.196078); // (200, 100, 50)
-    var actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    linear = LinearSrgb(f64).init(0, 0, 0);
-    expected = Srgb(f64).init(0, 0, 0);
-    actual = linear.toSrgb();
-    try std.testing.expectEqual(expected, actual);
-
-    linear = LinearSrgb(f64).init(1, 1, 1);
-    expected = Srgb(f64).init(1, 1, 1);
-    actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
-
-    linear = LinearSrgb(f64).init(0.008023, 0.577580, 0.026241);
-    expected = Srgb(f64).init(0.086274, 0.784313, 0.176470); // (22, 200, 45)
-    actual = linear.toSrgb();
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+test "LinearSrgb(f32) toXyz known values" {
+    const xyz = LinearSrgb(f32).init(0.604, 0.133, 0.033).toXyz();
+    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
 }

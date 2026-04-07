@@ -1,5 +1,6 @@
 const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const validation = @import("../validation.zig");
 const color_formatter = @import("../color_formatter.zig");
 
 const Hsl = @import("hsl.zig").Hsl;
@@ -52,11 +53,12 @@ pub fn Hsv(comptime T: type) type {
 
             const h = self.h.?;
             const chroma = self.v * self.s;
-            const hprime = @as(u8, @floor(h / 60.0));
-            const x = chroma * (1.0 - @abs(@mod(hprime, 2) - 1.0));
+            const hprime = h / 60.0;
+            const sector: u8 = @intFromFloat(@floor(hprime));
+            const x = chroma * (1.0 - @abs(@mod(hprime, 2.0) - 1.0));
             const m = self.v - chroma;
 
-            return switch (hprime) {
+            return switch (sector) {
                 0, 6 => Srgb(T).init(chroma + m, x + m, m),
                 1 => Srgb(T).init(x + m, chroma + m, m),
                 2 => Srgb(T).init(m, chroma + m, x + m),
@@ -96,4 +98,41 @@ pub fn Hsv(comptime T: type) type {
             return Hwb(T).init(self.h, w, b);
         }
     };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+const tol = 0.002;
+
+test "Hsv(f32) toSrgb" {
+    const c = Hsv(f32).init(20.0, 0.75, 0.8).toSrgb();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.800), c.r, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.400), c.g, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), c.b, tol);
+
+    // Achromatic
+    const gray = Hsv(f32).init(null, 0, 0.5).toSrgb();
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), gray.r, tol);
+}
+
+test "Hsv(f32) <-> XYZ round-trip" {
+    const original = Hsv(f32).init(20.0, 0.75, 0.8);
+    const result = Hsv(f32).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol);
+}
+
+test "Hsv(f32) toHsl" {
+    const hsl = Hsv(f32).init(20.0, 0.75, 0.8).toHsl();
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), hsl.h.?, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.600), hsl.s, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.500), hsl.l, tol);
+}
+
+test "Hsv(f32) toHwb" {
+    const hwb = Hsv(f32).init(20.0, 0.75, 0.8).toHwb();
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), hwb.h.?, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), hwb.w, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.200), hwb.b, tol);
 }

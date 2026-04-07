@@ -53,14 +53,35 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     validation.assertColorInterface(Src);
     validation.assertColorInterface(Dest);
 
+    const src_is_alpha = @hasDecl(Src, "Inner");
+    const dest_is_alpha = @hasDecl(Dest, "Inner");
+
+    // Alpha(X) -> Alpha(Y): convert inner colors, preserve alpha
+    if (src_is_alpha and dest_is_alpha) {
+        return Dest.init(
+            convert(src.color, Dest.Inner),
+            src.a,
+        );
+    }
+
+    // Alpha(X) -> Y: strip alpha, convert inner color
+    if (src_is_alpha) {
+        return convert(src.color, Dest);
+    }
+
+    // X -> Alpha(Y): convert color, default alpha to 1.0
+    if (dest_is_alpha) {
+        return Dest.initOpaque(convert(src, Dest.Inner));
+    }
+
     // Short circuit the conversion if the source type has a function named "to<Dest>()"
-    const destName = comptime {
-        var destName = validation.colorSpaceName(Dest);
-        const maybe_open_paren = std.mem.indexOfScalar(u8, destName, '(');
+    const destName = comptime blk: {
+        var name = validation.colorSpaceName(Dest);
+        const maybe_open_paren = std.mem.indexOfScalar(u8, name, '(');
         if (maybe_open_paren) |open_paren| {
-            destName = destName[0..open_paren];
+            name = name[0..open_paren];
         }
-        return destName;
+        break :blk name;
     };
     const toDest_fn_name = "to" ++ destName;
     if (std.meta.hasMethod(Src, toDest_fn_name)) {
@@ -68,13 +89,13 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     }
 
     // Short circuit the conversion if the destination type has a function named "from<Src>()"
-    const srcName = comptime {
-        var srcName = validation.colorSpaceName(Src);
-        const maybe_open_paren = std.mem.indexOfScalar(u8, srcName, '(');
+    const srcName = comptime blk: {
+        var name = validation.colorSpaceName(Src);
+        const maybe_open_paren = std.mem.indexOfScalar(u8, name, '(');
         if (maybe_open_paren) |open_paren| {
-            srcName = srcName[0..open_paren];
+            name = name[0..open_paren];
         }
-        return srcName;
+        break :blk name;
     };
     const fromSrc_fn_name = "from" ++ srcName;
     if (std.meta.hasMethod(Dest, fromSrc_fn_name)) {

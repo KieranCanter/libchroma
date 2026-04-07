@@ -186,3 +186,44 @@ pub fn LinearDisplayP3(comptime T: type) type {
 // ============================================================================
 // TESTS
 // ============================================================================
+
+const Srgb = @import("srgb.zig").Srgb;
+
+const tol32 = 0.002;
+const tol64 = 0.000002;
+
+test "DisplayP3(f32) <-> XYZ round-trip" {
+    const original = DisplayP3(f32).init(0.8, 0.4, 0.2);
+    const result = DisplayP3(f32).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol32);
+}
+
+test "DisplayP3(f64) <-> XYZ round-trip" {
+    const original = DisplayP3(f64).init(0.8, 0.4, 0.2);
+    const result = DisplayP3(f64).fromXyz(original.toXyz());
+    try validation.expectColorsApproxEqAbs(original, result, tol64);
+}
+
+test "DisplayP3(f32) toXyz known values" {
+    const xyz = DisplayP3(f32).init(0.8, 0.4, 0.2).toXyz();
+    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.336, 0.233, 0.041), xyz, tol32);
+
+    // White -> D65
+    const white = DisplayP3(f32).init(1, 1, 1).toXyz();
+    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
+
+    try std.testing.expectEqual(Xyz(f32).init(0, 0, 0), DisplayP3(f32).init(0, 0, 0).toXyz());
+}
+
+test "DisplayP3(f32) <-> LinearDisplayP3 round-trip" {
+    const original = DisplayP3(f32).init(0.8, 0.4, 0.2);
+    const result = original.toLinear().toP3();
+    try validation.expectColorsApproxEqAbs(original, result, tol32);
+}
+
+test "DisplayP3 <-> sRGB cross-space" {
+    // sRGB(0.8, 0.4, 0.2) -> XYZ -> P3
+    const srgb_xyz = Srgb(f32).init(0.8, 0.4, 0.2).toXyz();
+    const p3 = DisplayP3(f32).fromXyz(srgb_xyz);
+    try validation.expectColorsApproxEqAbs(DisplayP3(f32).init(0.749, 0.422, 0.248), p3, tol32);
+}

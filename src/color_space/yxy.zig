@@ -1,5 +1,6 @@
 const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
+const validation = @import("../validation.zig");
 const color_formatter = @import("../color_formatter.zig");
 
 const Srgb = @import("rgb/srgb.zig").Srgb;
@@ -41,14 +42,14 @@ pub fn Yxy(comptime T: type) type {
             }
 
             // X
-            const X = (self.x * self.luma) / self.y;
+            const x = (self.x * self.luma) / self.y;
 
             // Y remains the same as luma
 
             // Z
-            const Z = ((1.0 - self.x - self.y) * self.luma) / self.y;
+            const z = ((1.0 - self.x - self.y) * self.luma) / self.y;
 
-            return Xyz(T).init(X, self.y, Z);
+            return Xyz(T).init(x, self.luma, z);
         }
 
         // Formula for XYZ -> Yxy conversion:
@@ -75,4 +76,28 @@ pub fn Yxy(comptime T: type) type {
             return self.toXyz().toSrgb();
         }
     };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+const tol = 0.002;
+
+test "Yxy(f32) <-> XYZ round-trip" {
+    const original = Xyz(f32).init(0.302, 0.226, 0.059);
+    const yxy = Yxy(f32).fromXyz(original);
+    const result = yxy.toXyz();
+    try validation.expectColorsApproxEqAbs(original, result, tol);
+}
+
+test "Yxy(f32) fromXyz known values" {
+    const yxy = Yxy(f32).fromXyz(Xyz(f32).init(0.302, 0.226, 0.059));
+    try std.testing.expectApproxEqAbs(@as(f32, 0.226), yxy.luma, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.515), yxy.x, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.385), yxy.y, tol);
+
+    // Black -> all zero
+    const black = Yxy(f32).fromXyz(Xyz(f32).init(0, 0, 0));
+    try std.testing.expectEqual(Yxy(f32).init(0, 0, 0), black);
 }
