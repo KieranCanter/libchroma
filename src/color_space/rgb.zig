@@ -332,6 +332,28 @@ pub fn rgbCast(comptime U: type, val: anytype) U {
     };
 }
 
+pub fn isInGamut(rgb_color: anytype) bool {
+    const T = @TypeOf(rgb_color);
+    const F = rgbToFloatType(T.Backing);
+    const r = toFloat(F, rgb_color.r);
+    const g = toFloat(F, rgb_color.g);
+    const b = toFloat(F, rgb_color.b);
+    return r >= 0 and r <= 1 and g >= 0 and g <= 1 and b >= 0 and b <= 1;
+}
+
+pub fn clampRgb(comptime RgbType: type, rgb_color: anytype) RgbType {
+    const T = RgbType.Backing;
+    return switch (@typeInfo(T)) {
+        .int => rgb_color, // u8 is always in [0, 255]
+        .float => RgbType.init(
+            @max(@as(T, 0), @min(@as(T, 1), rgb_color.r)),
+            @max(@as(T, 0), @min(@as(T, 1), rgb_color.g)),
+            @max(@as(T, 0), @min(@as(T, 1), rgb_color.b)),
+        ),
+        else => unreachable,
+    };
+}
+
 // ============================================================================
 // TESTS
 // ============================================================================

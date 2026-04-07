@@ -147,6 +147,14 @@ pub fn Srgb(comptime T: type) type {
         pub fn toHwb(self: Self) Hwb(F) {
             return rgb.toHwb(self);
         }
+
+        pub fn isInGamut(self: Self) bool {
+            return rgb.isInGamut(self);
+        }
+
+        pub fn clamp(self: Self) Self {
+            return rgb.clampRgb(Self, self);
+        }
     };
 }
 
@@ -210,6 +218,14 @@ pub fn LinearSrgb(comptime T: type) type {
             }
 
             return fl;
+        }
+
+        pub fn isInGamut(self: Self) bool {
+            return rgb.isInGamut(self);
+        }
+
+        pub fn clamp(self: Self) Self {
+            return rgb.clampRgb(Self, self);
         }
     };
 }

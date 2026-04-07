@@ -9,7 +9,7 @@ pub const WhitePoint = struct {
 
 /// CIE Standard Illuminant D65, 2° observer.
 /// The standard daylight illuminant used by sRGB, Display P3, Rec. 2020,
-/// and CSS Color Level 4 color spaces.
+/// and CSS Color Level 5 color spaces.
 pub const d65 = WhitePoint{
     .x = 0.95047,
     .y = 1.0,

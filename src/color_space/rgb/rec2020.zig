@@ -108,6 +108,14 @@ pub fn Rec2020(comptime T: type) type {
         pub fn toHwb(self: Self) Hwb(F) {
             return rgb.toHwb(self);
         }
+
+        pub fn isInGamut(self: Self) bool {
+            return rgb.isInGamut(self);
+        }
+
+        pub fn clamp(self: Self) Self {
+            return rgb.clampRgb(Self, self);
+        }
     };
 }
 
@@ -206,6 +214,14 @@ pub fn Rec2020Scene(comptime T: type) type {
         pub fn toHwb(self: Self) Hwb(F) {
             return rgb.toHwb(self);
         }
+
+        pub fn isInGamut(self: Self) bool {
+            return rgb.isInGamut(self);
+        }
+
+        pub fn clamp(self: Self) Self {
+            return rgb.clampRgb(Self, self);
+        }
     };
 }
 
@@ -295,6 +311,14 @@ pub fn LinearRec2020(comptime T: type) type {
             }
 
             return rgb.fromFloat(T, fl);
+        }
+
+        pub fn isInGamut(self: Self) bool {
+            return rgb.isInGamut(self);
+        }
+
+        pub fn clamp(self: Self) Self {
+            return rgb.clampRgb(Self, self);
         }
     };
 }

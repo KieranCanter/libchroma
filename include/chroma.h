@@ -94,6 +94,15 @@ typedef struct {
 /* Convert a color from one space to another. Alpha is preserved. */
 chroma_color_t chroma_convert(chroma_color_t src, chroma_space_t dst);
 
+/* Check if a color is within the gamut of the given RGB color space.
+ * Non-RGB spaces always return true (they have no gamut limits). */
+_Bool chroma_is_in_gamut(chroma_color_t src, chroma_space_t gamut);
+
+/* Map a color into the gamut of a target RGB space using perceptual
+ * OKLCH chroma reduction (CSS Color Level 5 algorithm).
+ * Non-RGB targets fall back to a simple conversion. */
+chroma_color_t chroma_gamut_map(chroma_color_t src, chroma_space_t target);
+
 /* Helper: check if a hue value represents "no hue" (achromatic). */
 static inline int chroma_hue_is_null(float h) { return isnan(h); }
 

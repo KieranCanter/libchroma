@@ -2,9 +2,17 @@ const std = @import("std");
 
 const Xyz = @import("color_space/xyz.zig").Xyz;
 
+const alpha = @import("alpha.zig");
+
 // Color interface validation
 pub inline fn assertColorInterface(comptime T: type) void {
     comptime {
+        // Alpha wrapper: validate the inner color type instead
+        if (isAlpha(T)) {
+            assertColorInterface(T.Inner);
+            return;
+        }
+
         const color_space_name = colorSpaceName(T);
         if (!std.meta.hasMethod(T, "toXyz")) {
             @compileError(color_space_name ++ " must define a `toXyz()` method");
@@ -16,6 +24,10 @@ pub inline fn assertColorInterface(comptime T: type) void {
             @compileError(color_space_name ++ " must expose its backing type in a field `pub const Backing = T`");
         }
     }
+}
+
+pub inline fn isAlpha(comptime T: type) bool {
+    return @hasDecl(T, "Inner") and T == alpha.Alpha(T.Inner);
 }
 
 // RGB type validation

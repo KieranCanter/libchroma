@@ -49,6 +49,10 @@ pub const LinearRec2020 = rgb.rec2020.LinearRec2020;
 pub const RgbError = rgb.RgbError;
 pub const ChromaError = error{OutOfRange};
 
+// Gamut mapping
+const gamut = @import("gamut.zig");
+pub const gamutMap = gamut.gamutMap;
+
 // Alpha wrapper
 pub const Alpha = alpha.Alpha;
 
@@ -58,14 +62,14 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     validation.assertColorInterface(Src);
     validation.assertColorInterface(Dest);
 
-    const src_is_alpha = @hasDecl(Src, "Inner");
-    const dest_is_alpha = @hasDecl(Dest, "Inner");
+    const src_is_alpha = validation.isAlpha(Src);
+    const dest_is_alpha = validation.isAlpha(Dest);
 
     // Alpha(X) -> Alpha(Y): convert inner colors, preserve alpha
     if (src_is_alpha and dest_is_alpha) {
         return Dest.init(
             convert(src.color, Dest.Inner),
-            src.a,
+            src.alpha,
         );
     }
 
