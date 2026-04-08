@@ -2,9 +2,10 @@ const std = @import("std");
 const validation = @import("validation.zig");
 const color_formatter = @import("color_formatter.zig");
 
-/// Wrapper type that adds an alpha channel to any color type.
-/// Alpha is always stored as a float in [0.0, 1.0], even when
-/// wrapping a u8-backed RGB type.
+pub inline fn isAlpha(comptime T: type) bool {
+    return @hasDecl(T, "Inner") and T == Alpha(T.Inner);
+}
+
 pub fn Alpha(comptime ColorType: type) type {
     validation.assertColorInterface(ColorType);
 
@@ -48,7 +49,7 @@ pub fn Alpha(comptime ColorType: type) type {
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try self.color.format(writer);
-            try writer.print(", {d}", .{self.alpha});
+            try writer.print(", {d:.4}", .{self.alpha});
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {

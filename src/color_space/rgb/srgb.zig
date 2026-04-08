@@ -1,5 +1,6 @@
 const std = @import("std");
 const validation = @import("../../validation.zig");
+const chroma_testing = @import("../../testing.zig");
 const color_formatter = @import("../../color_formatter.zig");
 const rgb = @import("../rgb.zig");
 
@@ -82,7 +83,7 @@ pub fn Srgb(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -183,7 +184,7 @@ pub fn LinearSrgb(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -242,13 +243,13 @@ const tol64 = 0.000002;
 test "Srgb(f32) <-> LinearSrgb round-trip" {
     const original = Srgb(f32).init(0.8, 0.4, 0.2);
     const result = original.toLinear().toSrgb();
-    try validation.expectColorsApproxEqAbs(original, result, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Srgb(f64) <-> LinearSrgb round-trip" {
     const original = Srgb(f64).init(0.8, 0.4, 0.2);
     const result = original.toLinear().toSrgb();
-    try validation.expectColorsApproxEqAbs(original, result, tol64);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
 test "Srgb gamma edge cases" {
@@ -258,11 +259,11 @@ test "Srgb gamma edge cases" {
 
     // White
     const white = Srgb(f32).init(1, 1, 1).toLinear();
-    try validation.expectColorsApproxEqAbs(LinearSrgb(f32).init(1, 1, 1), white, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(LinearSrgb(f32).init(1, 1, 1), white, tol32);
 
     // Below linear threshold (0.04045)
     const low = Srgb(f32).init(0.03, 0.03, 0.03).toLinear();
-    try validation.expectColorsApproxEqAbs(LinearSrgb(f32).init(0.00232, 0.00232, 0.00232), low, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(LinearSrgb(f32).init(0.00232, 0.00232, 0.00232), low, tol32);
 }
 
 // --- Srgb <-> XYZ ---
@@ -270,23 +271,23 @@ test "Srgb gamma edge cases" {
 test "Srgb(f32) <-> XYZ round-trip" {
     const original = Srgb(f32).init(0.8, 0.4, 0.2);
     const result = Srgb(f32).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Srgb(f64) <-> XYZ round-trip" {
     const original = Srgb(f64).init(0.8, 0.4, 0.2);
     const result = Srgb(f64).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol64);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
 test "Srgb(f32) toXyz known values" {
     // sRGB(0.8, 0.4, 0.2) -> XYZ
     const xyz = Srgb(f32).init(0.8, 0.4, 0.2).toXyz();
-    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
 
     // White -> D65 white point
     const white = Srgb(f32).init(1, 1, 1).toXyz();
-    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
 
     // Black
     try std.testing.expectEqual(Xyz(f32).init(0, 0, 0), Srgb(f32).init(0, 0, 0).toXyz());
@@ -352,7 +353,7 @@ test "Srgb(f32) toCmyk" {
 
 test "Srgb(u8) toXyz produces f32" {
     const xyz = Srgb(u8).init(200, 100, 50).toXyz();
-    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.289, 0.216, 0.056), xyz, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.289, 0.216, 0.056), xyz, tol32);
 }
 
 // --- LinearSrgb ---
@@ -360,10 +361,10 @@ test "Srgb(u8) toXyz produces f32" {
 test "LinearSrgb(f32) <-> XYZ round-trip" {
     const original = LinearSrgb(f32).init(0.604, 0.133, 0.033);
     const result = LinearSrgb(f32).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "LinearSrgb(f32) toXyz known values" {
     const xyz = LinearSrgb(f32).init(0.604, 0.133, 0.033).toXyz();
-    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
 }

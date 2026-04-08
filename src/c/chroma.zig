@@ -228,36 +228,36 @@ export fn chroma_gamut_map(src: Color, target_space: Space) Color {
     const xyz = toXyz(src);
     return .{ .space = target_space, .alpha = src.alpha, .data = switch (target_space) {
         .srgb => blk: {
-            const c = lib.gamutMap(xyz, Srgb(f32));
+            const c = lib.gamut.gamutMap(xyz, Srgb(f32));
             break :blk .{ .srgb = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .srgb_u8 => blk: {
-            const c = lib.gamutMap(xyz, Srgb(f32));
+            const c = lib.gamut.gamutMap(xyz, Srgb(f32));
             const u = Srgb(u8).init(@intFromFloat(@round(c.r * 255)), @intFromFloat(@round(c.g * 255)), @intFromFloat(@round(c.b * 255)));
             break :blk .{ .srgb_u8 = .{ .r = u.r, .g = u.g, .b = u.b } };
         },
         .linear_srgb => blk: {
-            const c = lib.gamutMap(xyz, LinearSrgb(f32));
+            const c = lib.gamut.gamutMap(xyz, LinearSrgb(f32));
             break :blk .{ .linear_srgb = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .display_p3 => blk: {
-            const c = lib.gamutMap(xyz, DisplayP3(f32));
+            const c = lib.gamut.gamutMap(xyz, DisplayP3(f32));
             break :blk .{ .display_p3 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .linear_display_p3 => blk: {
-            const c = lib.gamutMap(xyz, LinearDisplayP3(f32));
+            const c = lib.gamut.gamutMap(xyz, LinearDisplayP3(f32));
             break :blk .{ .linear_display_p3 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .rec2020 => blk: {
-            const c = lib.gamutMap(xyz, Rec2020(f32));
+            const c = lib.gamut.gamutMap(xyz, Rec2020(f32));
             break :blk .{ .rec2020 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .rec2020_scene => blk: {
-            const c = lib.gamutMap(xyz, Rec2020Scene(f32));
+            const c = lib.gamut.gamutMap(xyz, Rec2020Scene(f32));
             break :blk .{ .rec2020_scene = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .linear_rec2020 => blk: {
-            const c = lib.gamutMap(xyz, LinearRec2020(f32));
+            const c = lib.gamut.gamutMap(xyz, LinearRec2020(f32));
             break :blk .{ .linear_rec2020 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         // Non-RGB targets: just convert, no gamut mapping needed

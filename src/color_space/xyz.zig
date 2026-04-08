@@ -28,7 +28,7 @@ pub fn Xyz(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.x, self.y, self.z });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.x, self.y, self.z });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {

@@ -35,7 +35,7 @@ pub fn Lab(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.l, self.a, self.b });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.l, self.a, self.b });
         }
 
         // CIE Lab -> XYZ (D65)
@@ -125,6 +125,7 @@ pub fn Lab(comptime T: type) type {
 // ============================================================================
 
 const validation = @import("../validation.zig");
+const chroma_testing = @import("../testing.zig");
 
 test "Lab(f32) fromXyz" {
     const tolerance = 0.002;
@@ -133,7 +134,7 @@ test "Lab(f32) fromXyz" {
     var xyz = Xyz(f32).init(0.95047, 1.0, 1.08883);
     var expected = Lab(f32).init(100.0, 0.0, 0.0);
     var actual = Lab(f32).fromXyz(xyz);
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     // Black
     xyz = Xyz(f32).init(0, 0, 0);
@@ -145,7 +146,7 @@ test "Lab(f32) fromXyz" {
     xyz = Xyz(f32).init(0.2895, 0.2163, 0.0567);
     expected = Lab(f32).init(53.632, 36.275, 45.370);
     actual = Lab(f32).fromXyz(xyz);
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
 }
 
 test "Lab(f64) fromXyz" {
@@ -154,7 +155,7 @@ test "Lab(f64) fromXyz" {
     var xyz = Xyz(f64).init(0.95047, 1.0, 1.08883);
     var expected = Lab(f64).init(100.0, 0.0, 0.0);
     var actual = Lab(f64).fromXyz(xyz);
-    try validation.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
 
     xyz = Xyz(f64).init(0, 0, 0);
     expected = Lab(f64).init(0, 0, 0);
@@ -168,7 +169,7 @@ test "Lab(f32) toXyz round-trip" {
     const original = Xyz(f32).init(0.2895, 0.2163, 0.0567);
     const lab = Lab(f32).fromXyz(original);
     const result = lab.toXyz();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }
 
 test "Lab(f64) toXyz round-trip" {
@@ -177,7 +178,7 @@ test "Lab(f64) toXyz round-trip" {
     const original = Xyz(f64).init(0.289514, 0.216258, 0.056673);
     const lab = Lab(f64).fromXyz(original);
     const result = lab.toXyz();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }
 
 test "Lab(f32) toLch" {

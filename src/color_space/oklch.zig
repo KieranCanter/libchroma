@@ -30,7 +30,7 @@ pub fn Oklch(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {?}", .{ self.l, self.c, self.h });
+            try writer.print("{d:.4}, {d:.4}, {?d:.4}", .{ self.l, self.c, self.h });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {
@@ -61,6 +61,7 @@ pub fn Oklch(comptime T: type) type {
 // ============================================================================
 
 const validation = @import("../validation.zig");
+const chroma_testing = @import("../testing.zig");
 
 test "Oklch(f32) toOklab achromatic" {
     const tolerance = 0.002;
@@ -88,7 +89,7 @@ test "Oklch(f32) Oklab round-trip" {
     const original = Oklab(f32).init(0.628, 0.225, 0.126);
     const oklch = original.toOklch();
     const result = oklch.toOklab();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }
 
 test "Oklch(f64) Oklab round-trip" {
@@ -97,7 +98,7 @@ test "Oklch(f64) Oklab round-trip" {
     const original = Oklab(f64).init(0.628, 0.225, 0.126);
     const oklch = original.toOklch();
     const result = oklch.toOklab();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }
 
 test "Oklch(f32) XYZ round-trip" {
@@ -106,5 +107,5 @@ test "Oklch(f32) XYZ round-trip" {
     const original = Xyz(f32).init(0.2895, 0.2163, 0.0567);
     const oklch = Oklch(f32).fromXyz(original);
     const result = oklch.toXyz();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }

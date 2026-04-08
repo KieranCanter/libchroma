@@ -1,9 +1,9 @@
 const std = @import("std");
 const validation = @import("../../validation.zig");
+const chroma_testing = @import("../../testing.zig");
 const color_formatter = @import("../../color_formatter.zig");
 const rgb = @import("../rgb.zig");
 const rgbCast = @import("../rgb.zig").rgbCast;
-const RgbError = @import("../rgb.zig").RgbError;
 
 const Cmyk = @import("../cmyk.zig").Cmyk;
 const Hsi = @import("../hsi.zig").Hsi;
@@ -54,7 +54,7 @@ pub fn Rec2020(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -146,7 +146,7 @@ pub fn Rec2020Scene(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -251,7 +251,7 @@ pub fn LinearRec2020(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -335,22 +335,22 @@ const tol64 = 0.000002;
 test "Rec2020(f32) <-> XYZ round-trip" {
     const original = Rec2020(f32).init(0.8, 0.4, 0.2);
     const result = Rec2020(f32).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Rec2020(f64) <-> XYZ round-trip" {
     const original = Rec2020(f64).init(0.8, 0.4, 0.2);
     const result = Rec2020(f64).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol64);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
 test "Rec2020(f32) toXyz known values" {
     const xyz = Rec2020(f32).init(0.8, 0.4, 0.2).toXyz();
-    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.765, 0.733, 0.562), xyz, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.765, 0.733, 0.562), xyz, tol32);
 
     // White -> D65
     const white = Rec2020(f32).init(1, 1, 1).toXyz();
-    try validation.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
 
     try std.testing.expectEqual(Xyz(f32).init(0, 0, 0), Rec2020(f32).init(0, 0, 0).toXyz());
 }
@@ -358,24 +358,24 @@ test "Rec2020(f32) toXyz known values" {
 test "Rec2020(f32) <-> LinearRec2020 round-trip" {
     const original = Rec2020(f32).init(0.8, 0.4, 0.2);
     const result = original.toLinear().toRec2020();
-    try validation.expectColorsApproxEqAbs(original, result, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Rec2020Scene(f32) <-> XYZ round-trip" {
     const original = Rec2020Scene(f32).init(0.8, 0.4, 0.2);
     const result = Rec2020Scene(f32).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Rec2020Scene(f32) <-> LinearRec2020 round-trip" {
     const original = Rec2020Scene(f32).init(0.8, 0.4, 0.2);
     const result = original.toLinear().toRec2020Scene();
-    try validation.expectColorsApproxEqAbs(original, result, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Rec2020 <-> sRGB cross-space" {
     // sRGB(0.8, 0.4, 0.2) -> XYZ -> Rec2020
     const srgb_xyz = Srgb(f32).init(0.8, 0.4, 0.2).toXyz();
     const r20 = Rec2020(f32).fromXyz(srgb_xyz);
-    try validation.expectColorsApproxEqAbs(Rec2020(f32).init(0.128, 0.013, 0.001), r20, tol32);
+    try chroma_testing.expectColorsApproxEqAbs(Rec2020(f32).init(0.128, 0.013, 0.001), r20, tol32);
 }

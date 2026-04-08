@@ -1,6 +1,7 @@
 const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
 const validation = @import("../validation.zig");
+const chroma_testing = @import("../testing.zig");
 const color_formatter = @import("../color_formatter.zig");
 
 const Hsl = @import("hsl.zig").Hsl;
@@ -33,7 +34,7 @@ pub fn Hsi(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{?}, {d}, {d}", .{ self.h, self.s, self.i });
+            try writer.print("{?d:.4}, {d:.4}, {d:.4}", .{ self.h, self.s, self.i });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {
@@ -93,5 +94,5 @@ test "Hsi(f32) toSrgb" {
 test "Hsi(f32) <-> XYZ round-trip" {
     const original = Hsi(f32).init(20.0, 0.571, 0.467);
     const result = Hsi(f32).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }

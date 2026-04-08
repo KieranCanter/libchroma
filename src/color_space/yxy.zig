@@ -1,6 +1,7 @@
 const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
 const validation = @import("../validation.zig");
+const chroma_testing = @import("../testing.zig");
 const color_formatter = @import("../color_formatter.zig");
 
 const Srgb = @import("rgb/srgb.zig").Srgb;
@@ -31,7 +32,7 @@ pub fn Yxy(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {d}", .{ self.luma, self.x, self.y });
+            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.luma, self.x, self.y });
         }
 
         // Formula for Yxy -> XYZ conversion:
@@ -88,7 +89,7 @@ test "Yxy(f32) <-> XYZ round-trip" {
     const original = Xyz(f32).init(0.302, 0.226, 0.059);
     const yxy = Yxy(f32).fromXyz(original);
     const result = yxy.toXyz();
-    try validation.expectColorsApproxEqAbs(original, result, tol);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }
 
 test "Yxy(f32) fromXyz known values" {

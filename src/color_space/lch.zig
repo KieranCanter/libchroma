@@ -30,7 +30,7 @@ pub fn Lch(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d}, {d}, {?}", .{ self.l, self.c, self.h });
+            try writer.print("{d:.4}, {d:.4}, {?d:.4}", .{ self.l, self.c, self.h });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {
@@ -62,6 +62,7 @@ pub fn Lch(comptime T: type) type {
 // ============================================================================
 
 const validation = @import("../validation.zig");
+const chroma_testing = @import("../testing.zig");
 
 test "Lch(f32) toLab achromatic" {
     const tolerance = 0.002;
@@ -89,7 +90,7 @@ test "Lch(f32) Lab round-trip" {
     const original = Lab(f32).init(53.539, 30.344, 40.602);
     const lch = original.toLch();
     const result = lch.toLab();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }
 
 test "Lch(f64) Lab round-trip" {
@@ -98,7 +99,7 @@ test "Lch(f64) Lab round-trip" {
     const original = Lab(f64).init(53.539, 30.344, 40.602);
     const lch = original.toLch();
     const result = lch.toLab();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }
 
 test "Lch(f32) XYZ round-trip" {
@@ -107,5 +108,5 @@ test "Lch(f32) XYZ round-trip" {
     const original = Xyz(f32).init(0.2895, 0.2163, 0.0567);
     const lch = Lch(f32).fromXyz(original);
     const result = lch.toXyz();
-    try validation.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }

@@ -1,5 +1,6 @@
 const std = @import("std");
 const validation = @import("../validation.zig");
+const chroma_testing = @import("../testing.zig");
 const color_formatter = @import("../color_formatter.zig");
 const rgbToFloatType = validation.rgbToFloatType;
 
@@ -397,7 +398,7 @@ test "Srgb(f32) initFromHex" {
     const tolerance = 0.002;
 
     var c = Srgb(f32).initFromHex(0xc86432);
-    try validation.expectColorsApproxEqAbs(Srgb(f32).init(0.784, 0.392, 0.196), c, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(Srgb(f32).init(0.784, 0.392, 0.196), c, tolerance);
 
     c = Srgb(f32).initFromHex(0x000000);
     try std.testing.expectEqual(Srgb(f32).init(0, 0, 0), c);
@@ -406,14 +407,14 @@ test "Srgb(f32) initFromHex" {
     try std.testing.expectEqual(Srgb(f32).init(1, 1, 1), c);
 
     c = Srgb(f32).initFromHex(0x16c82d);
-    try validation.expectColorsApproxEqAbs(Srgb(f32).init(0.086, 0.784, 0.176), c, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(Srgb(f32).init(0.086, 0.784, 0.176), c, tolerance);
 }
 
 test "Srgb(f64) initFromHex" {
     const tolerance = 0.000002;
 
     var c = Srgb(f64).initFromHex(0xc86432);
-    try validation.expectColorsApproxEqAbs(Srgb(f64).init(0.784314, 0.392157, 0.196078), c, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(Srgb(f64).init(0.784314, 0.392157, 0.196078), c, tolerance);
 
     c = Srgb(f64).initFromHex(0x000000);
     try std.testing.expectEqual(Srgb(f64).init(0, 0, 0), c);
@@ -422,7 +423,7 @@ test "Srgb(f64) initFromHex" {
     try std.testing.expectEqual(Srgb(f64).init(1, 1, 1), c);
 
     c = Srgb(f64).initFromHex(0x16c82d);
-    try validation.expectColorsApproxEqAbs(Srgb(f64).init(0.086275, 0.784314, 0.176471), c, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(Srgb(f64).init(0.086275, 0.784314, 0.176471), c, tolerance);
 }
 
 test "Srgb(u8) toHex" {
@@ -455,5 +456,5 @@ test "Srgb hex round-trip" {
     const tolerance = 0.002;
     const original_f32 = Srgb(f32).init(0.784, 0.392, 0.196);
     const round_tripped = Srgb(f32).initFromHex(original_f32.toHex());
-    try validation.expectColorsApproxEqAbs(original_f32, round_tripped, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original_f32, round_tripped, tolerance);
 }

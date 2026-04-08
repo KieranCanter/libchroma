@@ -1,6 +1,7 @@
 const std = @import("std");
 const assertFloatType = @import("../validation.zig").assertFloatType;
 const validation = @import("../validation.zig");
+const chroma_testing = @import("../testing.zig");
 const color_formatter = @import("../color_formatter.zig");
 
 const Hsv = @import("hsv.zig").Hsv;
@@ -32,7 +33,7 @@ pub fn Hwb(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{?}, {d}, {d}", .{ self.h, self.w, self.b });
+            try writer.print("{?d:.4}, {d:.4}, {d:.4}", .{ self.h, self.w, self.b });
         }
 
         pub fn toXyz(self: Self) Xyz(T) {
@@ -104,7 +105,7 @@ test "Hwb(f32) toSrgb" {
 test "Hwb(f32) <-> XYZ round-trip" {
     const original = Hwb(f32).init(20.0, 0.2, 0.2);
     const result = Hwb(f32).fromXyz(original.toXyz());
-    try validation.expectColorsApproxEqAbs(original, result, tol);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }
 
 test "Hwb(f32) toHsv" {
