@@ -33,12 +33,16 @@ pub fn run(alloc: Allocator, args: *std.process.ArgIterator) !void {
     const input = try parse.parse(color_str orelse return action.ActionError.HelpRequested);
     const space = fmt.spaceFromCliName(space_str orelse return action.ActionError.HelpRequested) orelse return parse.ParseError.UnknownSpace;
 
-    const result = lib.color.convert(input, space);
+    const result = lib.color.convert(input.color, space);
 
     if (opts.json) {
-        try fmt.formatColorJson(result, opts, out);
+        try fmt.formatColorJson(result, input.alpha, opts, out);
     } else {
         try fmt.formatColor(result, opts, out);
+        if (input.alpha) |a| {
+            try out.writeAll(" / ");
+            try fmt.formatFloat(a, opts.precision, out);
+        }
     }
     try out.writeAll("\n");
     try out.flush();

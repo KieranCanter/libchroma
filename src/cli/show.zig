@@ -31,17 +31,23 @@ pub fn run(alloc: Allocator, args: *std.process.ArgIterator) !void {
     const input = try parse.parse(color_str orelse return action.ActionError.HelpRequested);
 
     if (opts.json) {
-        try fmt.formatAllJson(input, opts, out);
+        try fmt.formatAllJson(input.color, input.alpha, opts, out);
         try out.writeAll("\n");
     } else {
+        if (input.alpha) |a| {
+            try out.print("  alpha:               ", .{});
+            try fmt.formatFloat(a, opts.precision, out);
+            try out.writeAll("\n");
+        }
+
         // Always show hex
-        const srgb = lib.color.convert(input, .srgb).srgb;
+        const srgb = lib.color.convert(input.color, .srgb).srgb;
         try out.print("  hex:                 #{X:0>6}\n", .{srgb.toHex()});
 
         inline for (@typeInfo(lib.Space).@"enum".fields) |field| {
             const space: lib.Space = @enumFromInt(field.value);
             const cli_name = comptime fmt.spaceCliName(space);
-            const result = lib.color.convert(input, space);
+            const result = lib.color.convert(input.color, space);
             try out.print("  {s}:", .{cli_name});
             const pad = 20 -| cli_name.len;
             for (0..pad) |_| try out.writeAll(" ");

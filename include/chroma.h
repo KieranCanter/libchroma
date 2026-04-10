@@ -12,8 +12,9 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -41,49 +42,105 @@ typedef enum {
     CHROMA_OKLCH,
 } chroma_space_t;
 
-typedef struct { float r, g, b; }          chroma_srgb_t;
-typedef struct { uint8_t r, g, b; }        chroma_srgb_u8_t;
-typedef struct { float r, g, b; }          chroma_linear_srgb_t;
-typedef struct { float r, g, b; }          chroma_display_p3_t;
-typedef struct { float r, g, b; }          chroma_linear_display_p3_t;
-typedef struct { float r, g, b; }          chroma_rec2020_t;
-typedef struct { float r, g, b; }          chroma_rec2020_scene_t;
-typedef struct { float r, g, b; }          chroma_linear_rec2020_t;
-typedef struct { float h, s, l; }          chroma_hsl_t;
-typedef struct { float h, s, v; }          chroma_hsv_t;
-typedef struct { float h, w, b; }          chroma_hwb_t;
-typedef struct { float h, s, i; }          chroma_hsi_t;
-typedef struct { float c, m, y, k; }       chroma_cmyk_t;
-typedef struct { float x, y, z; }          chroma_xyz_t;
-typedef struct { float luma, x, y; }       chroma_yxy_t;
-typedef struct { float l, a, b; }          chroma_lab_t;
-typedef struct { float l, c, h; }          chroma_lch_t;
-typedef struct { float l, a, b; }          chroma_oklab_t;
-typedef struct { float l, c, h; }          chroma_oklch_t;
+typedef struct {
+    float r, g, b;
+} chroma_srgb_t;
+
+typedef struct {
+    uint8_t r, g, b;
+} chroma_srgb_u8_t;
+
+typedef struct {
+    float r, g, b;
+} chroma_linear_srgb_t;
+
+typedef struct {
+    float r, g, b;
+} chroma_display_p3_t;
+
+typedef struct {
+    float r, g, b;
+} chroma_linear_display_p3_t;
+
+typedef struct {
+    float r, g, b;
+} chroma_rec2020_t;
+
+typedef struct {
+    float r, g, b;
+} chroma_rec2020_scene_t;
+
+typedef struct {
+    float r, g, b;
+} chroma_linear_rec2020_t;
+
+typedef struct {
+    float h, s, l;
+} chroma_hsl_t;
+
+typedef struct {
+    float h, s, v;
+} chroma_hsv_t;
+
+typedef struct {
+    float h, w, b;
+} chroma_hwb_t;
+
+typedef struct {
+    float h, s, i;
+} chroma_hsi_t;
+
+typedef struct {
+    float c, m, y, k;
+} chroma_cmyk_t;
+
+typedef struct {
+    float x, y, z;
+} chroma_xyz_t;
+
+typedef struct {
+    float luma, x, y;
+} chroma_yxy_t;
+
+typedef struct {
+    float l, a, b;
+} chroma_lab_t;
+
+typedef struct {
+    float l, c, h;
+} chroma_lch_t;
+
+typedef struct {
+    float l, a, b;
+} chroma_oklab_t;
+
+typedef struct {
+    float l, c, h;
+} chroma_oklch_t;
 
 typedef struct {
     chroma_space_t space;
     float alpha;
     union {
-        chroma_srgb_t              srgb;
-        chroma_srgb_u8_t           srgb_u8;
-        chroma_linear_srgb_t       linear_srgb;
-        chroma_display_p3_t        display_p3;
+        chroma_srgb_t srgb;
+        chroma_srgb_u8_t srgb_u8;
+        chroma_linear_srgb_t linear_srgb;
+        chroma_display_p3_t display_p3;
         chroma_linear_display_p3_t linear_display_p3;
-        chroma_rec2020_t           rec2020;
-        chroma_rec2020_scene_t     rec2020_scene;
-        chroma_linear_rec2020_t    linear_rec2020;
-        chroma_hsl_t               hsl;
-        chroma_hsv_t               hsv;
-        chroma_hwb_t               hwb;
-        chroma_hsi_t               hsi;
-        chroma_cmyk_t              cmyk;
-        chroma_xyz_t               xyz;
-        chroma_yxy_t               yxy;
-        chroma_lab_t               lab;
-        chroma_lch_t               lch;
-        chroma_oklab_t             oklab;
-        chroma_oklch_t             oklch;
+        chroma_rec2020_t rec2020;
+        chroma_rec2020_scene_t rec2020_scene;
+        chroma_linear_rec2020_t linear_rec2020;
+        chroma_hsl_t hsl;
+        chroma_hsv_t hsv;
+        chroma_hwb_t hwb;
+        chroma_hsi_t hsi;
+        chroma_cmyk_t cmyk;
+        chroma_xyz_t xyz;
+        chroma_yxy_t yxy;
+        chroma_lab_t lab;
+        chroma_lch_t lch;
+        chroma_oklab_t oklab;
+        chroma_oklch_t oklch;
     };
 } chroma_color_t;
 
@@ -96,7 +153,7 @@ chroma_color_t chroma_convert(chroma_color_t src, chroma_space_t dst);
 
 /* Check if a color is within the gamut of the given RGB color space.
  * Non-RGB spaces always return true (they have no gamut limits). */
-_Bool chroma_is_in_gamut(chroma_color_t src, chroma_space_t gamut);
+bool chroma_is_in_gamut(chroma_color_t src, chroma_space_t gamut);
 
 /* Map a color into the gamut of a target RGB space using perceptual
  * OKLCH chroma reduction (CSS Color Level 5 algorithm).
@@ -104,7 +161,9 @@ _Bool chroma_is_in_gamut(chroma_color_t src, chroma_space_t gamut);
 chroma_color_t chroma_gamut_map(chroma_color_t src, chroma_space_t target);
 
 /* Helper: check if a hue value represents "no hue" (achromatic). */
-static inline int chroma_hue_is_null(float h) { return isnan(h); }
+static inline int chroma_hue_is_null(float h) {
+    return isnan(h);
+}
 
 /* Helper: the "no hue" sentinel value. */
 #define CHROMA_HUE_NONE NAN

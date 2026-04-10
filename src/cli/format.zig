@@ -58,25 +58,34 @@ pub fn formatValues(c: anytype, opts: Options, w: *Writer) Writer.Error!void {
     }
 }
 
-/// Format a single Color as JSON: {"space":"oklch","l":0.61,"c":0.14,"h":45.08}
-pub fn formatColorJson(color: lib.Color, opts: Options, w: *Writer) Writer.Error!void {
-    switch (color) {
-        inline else => |c, tag| {
+/// Format a single Color as JSON: {"space":"oklch","l":0.61,"c":0.14,"h":45.08,"alpha":0.5}
+pub fn formatColorJson(c: lib.Color, alpha: ?f32, opts: Options, w: *Writer) Writer.Error!void {
+    switch (c) {
+        inline else => |v, tag| {
             try w.print("{{\"space\":\"{s}\"", .{comptime spaceCliName(tag)});
-            const fields = @typeInfo(@TypeOf(c)).@"struct".fields;
+            const fields = @typeInfo(@TypeOf(v)).@"struct".fields;
             inline for (fields) |f| {
                 try w.print(",\"{s}\":", .{f.name});
-                try formatFieldJson(@field(c, f.name), f.type, opts, w);
+                try formatFieldJson(@field(v, f.name), f.type, opts, w);
+            }
+            if (alpha) |a| {
+                try w.writeAll(",\"alpha\":");
+                try formatFloat(a, opts.precision, w);
             }
             try w.writeAll("}");
         },
     }
 }
 
-/// Format all spaces as JSON: {"cie-xyz":{...},"srgb":{...},...}
-pub fn formatAllJson(input: lib.Color, opts: Options, w: *Writer) Writer.Error!void {
+/// Format all spaces as JSON: {"alpha":0.5,"cie-xyz":{...},"srgb":{...},...}
+pub fn formatAllJson(input: lib.Color, alpha: ?f32, opts: Options, w: *Writer) Writer.Error!void {
     @setEvalBranchQuota(10000);
     try w.writeAll("{");
+    if (alpha) |a| {
+        try w.writeAll("\"alpha\":");
+        try formatFloat(a, opts.precision, w);
+        try w.writeAll(",");
+    }
     inline for (@typeInfo(lib.Space).@"enum".fields, 0..) |field, i| {
         const space: lib.Space = @enumFromInt(field.value);
         const result = lib.color.convert(input, space);
