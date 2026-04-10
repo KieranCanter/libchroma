@@ -9,12 +9,12 @@ const Hsi = lib.Hsi;
 const Hsl = lib.Hsl;
 const Hsv = lib.Hsv;
 const Hwb = lib.Hwb;
-const Lab = lib.Lab;
-const Lch = lib.Lch;
+const CieLab = lib.CieLab;
+const CieLch = lib.CieLch;
 const Oklab = lib.Oklab;
 const Oklch = lib.Oklch;
-const Xyz = lib.Xyz;
-const Yxy = lib.Yxy;
+const CieXyz = lib.CieXyz;
+const CieYxy = lib.CieYxy;
 const Srgb = lib.Srgb;
 const LinearSrgb = lib.LinearSrgb;
 const DisplayP3 = lib.DisplayP3;
@@ -97,107 +97,107 @@ pub const Color = extern struct {
     data: ColorData,
 };
 
-// -- Unpack: C color -> Zig Xyz(f32) --
+// -- Unpack: C color -> Zig CieXyz(f32) --
 
-fn toXyz(color: Color) Xyz(f32) {
+fn toCieXyz(color: Color) CieXyz(f32) {
     return switch (color.space) {
-        .srgb => Srgb(f32).init(color.data.srgb.r, color.data.srgb.g, color.data.srgb.b).toXyz(),
-        .srgb_u8 => Srgb(u8).init(color.data.srgb_u8.r, color.data.srgb_u8.g, color.data.srgb_u8.b).toXyz(),
-        .linear_srgb => LinearSrgb(f32).init(color.data.linear_srgb.r, color.data.linear_srgb.g, color.data.linear_srgb.b).toXyz(),
-        .display_p3 => DisplayP3(f32).init(color.data.display_p3.r, color.data.display_p3.g, color.data.display_p3.b).toXyz(),
-        .linear_display_p3 => LinearDisplayP3(f32).init(color.data.linear_display_p3.r, color.data.linear_display_p3.g, color.data.linear_display_p3.b).toXyz(),
-        .rec2020 => Rec2020(f32).init(color.data.rec2020.r, color.data.rec2020.g, color.data.rec2020.b).toXyz(),
-        .rec2020_scene => Rec2020Scene(f32).init(color.data.rec2020_scene.r, color.data.rec2020_scene.g, color.data.rec2020_scene.b).toXyz(),
-        .linear_rec2020 => LinearRec2020(f32).init(color.data.linear_rec2020.r, color.data.linear_rec2020.g, color.data.linear_rec2020.b).toXyz(),
-        .hsl => Hsl(f32).init(hueFromC(color.data.hsl.h), color.data.hsl.s, color.data.hsl.l).toXyz(),
-        .hsv => Hsv(f32).init(hueFromC(color.data.hsv.h), color.data.hsv.s, color.data.hsv.v).toXyz(),
-        .hwb => Hwb(f32).init(hueFromC(color.data.hwb.h), color.data.hwb.w, color.data.hwb.b).toXyz(),
-        .hsi => Hsi(f32).init(hueFromC(color.data.hsi.h), color.data.hsi.s, color.data.hsi.i).toXyz(),
-        .cmyk => Cmyk(f32).init(color.data.cmyk.c, color.data.cmyk.m, color.data.cmyk.y, color.data.cmyk.k).toXyz(),
-        .xyz => Xyz(f32).init(color.data.xyz.x, color.data.xyz.y, color.data.xyz.z),
-        .yxy => Yxy(f32).init(color.data.yxy.luma, color.data.yxy.x, color.data.yxy.y).toXyz(),
-        .lab => Lab(f32).init(color.data.lab.l, color.data.lab.a, color.data.lab.b).toXyz(),
-        .lch => Lch(f32).init(color.data.lch.l, color.data.lch.c, hueFromC(color.data.lch.h)).toXyz(),
-        .oklab => Oklab(f32).init(color.data.oklab.l, color.data.oklab.a, color.data.oklab.b).toXyz(),
-        .oklch => Oklch(f32).init(color.data.oklch.l, color.data.oklch.c, hueFromC(color.data.oklch.h)).toXyz(),
+        .srgb => Srgb(f32).init(color.data.srgb.r, color.data.srgb.g, color.data.srgb.b).toCieXyz(),
+        .srgb_u8 => Srgb(u8).init(color.data.srgb_u8.r, color.data.srgb_u8.g, color.data.srgb_u8.b).toCieXyz(),
+        .linear_srgb => LinearSrgb(f32).init(color.data.linear_srgb.r, color.data.linear_srgb.g, color.data.linear_srgb.b).toCieXyz(),
+        .display_p3 => DisplayP3(f32).init(color.data.display_p3.r, color.data.display_p3.g, color.data.display_p3.b).toCieXyz(),
+        .linear_display_p3 => LinearDisplayP3(f32).init(color.data.linear_display_p3.r, color.data.linear_display_p3.g, color.data.linear_display_p3.b).toCieXyz(),
+        .rec2020 => Rec2020(f32).init(color.data.rec2020.r, color.data.rec2020.g, color.data.rec2020.b).toCieXyz(),
+        .rec2020_scene => Rec2020Scene(f32).init(color.data.rec2020_scene.r, color.data.rec2020_scene.g, color.data.rec2020_scene.b).toCieXyz(),
+        .linear_rec2020 => LinearRec2020(f32).init(color.data.linear_rec2020.r, color.data.linear_rec2020.g, color.data.linear_rec2020.b).toCieXyz(),
+        .hsl => Hsl(f32).init(hueFromC(color.data.hsl.h), color.data.hsl.s, color.data.hsl.l).toCieXyz(),
+        .hsv => Hsv(f32).init(hueFromC(color.data.hsv.h), color.data.hsv.s, color.data.hsv.v).toCieXyz(),
+        .hwb => Hwb(f32).init(hueFromC(color.data.hwb.h), color.data.hwb.w, color.data.hwb.b).toCieXyz(),
+        .hsi => Hsi(f32).init(hueFromC(color.data.hsi.h), color.data.hsi.s, color.data.hsi.i).toCieXyz(),
+        .cmyk => Cmyk(f32).init(color.data.cmyk.c, color.data.cmyk.m, color.data.cmyk.y, color.data.cmyk.k).toCieXyz(),
+        .xyz => CieXyz(f32).init(color.data.xyz.x, color.data.xyz.y, color.data.xyz.z),
+        .yxy => CieYxy(f32).init(color.data.yxy.luma, color.data.yxy.x, color.data.yxy.y).toCieXyz(),
+        .lab => CieLab(f32).init(color.data.lab.l, color.data.lab.a, color.data.lab.b).toCieXyz(),
+        .lch => CieLch(f32).init(color.data.lch.l, color.data.lch.c, hueFromC(color.data.lch.h)).toCieXyz(),
+        .oklab => Oklab(f32).init(color.data.oklab.l, color.data.oklab.a, color.data.oklab.b).toCieXyz(),
+        .oklch => Oklch(f32).init(color.data.oklch.l, color.data.oklch.c, hueFromC(color.data.oklch.h)).toCieXyz(),
     };
 }
 
-// -- Pack: Zig Xyz(f32) -> C color data --
+// -- Pack: Zig CieXyz(f32) -> C color data --
 
-fn fromXyz(xyz: Xyz(f32), alpha: f32, space: Space) Color {
+fn fromCieXyz(xyz: CieXyz(f32), alpha: f32, space: Space) Color {
     return .{ .space = space, .alpha = alpha, .data = switch (space) {
         .srgb => blk: {
-            const c = Srgb(f32).fromXyz(xyz);
+            const c = Srgb(f32).fromCieXyz(xyz);
             break :blk .{ .srgb = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .srgb_u8 => blk: {
-            const c = Srgb(u8).fromXyz(xyz);
+            const c = Srgb(u8).fromCieXyz(xyz);
             break :blk .{ .srgb_u8 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .linear_srgb => blk: {
-            const c = LinearSrgb(f32).fromXyz(xyz);
+            const c = LinearSrgb(f32).fromCieXyz(xyz);
             break :blk .{ .linear_srgb = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .display_p3 => blk: {
-            const c = DisplayP3(f32).fromXyz(xyz);
+            const c = DisplayP3(f32).fromCieXyz(xyz);
             break :blk .{ .display_p3 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .linear_display_p3 => blk: {
-            const c = LinearDisplayP3(f32).fromXyz(xyz);
+            const c = LinearDisplayP3(f32).fromCieXyz(xyz);
             break :blk .{ .linear_display_p3 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .rec2020 => blk: {
-            const c = Rec2020(f32).fromXyz(xyz);
+            const c = Rec2020(f32).fromCieXyz(xyz);
             break :blk .{ .rec2020 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .rec2020_scene => blk: {
-            const c = Rec2020Scene(f32).fromXyz(xyz);
+            const c = Rec2020Scene(f32).fromCieXyz(xyz);
             break :blk .{ .rec2020_scene = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .linear_rec2020 => blk: {
-            const c = LinearRec2020(f32).fromXyz(xyz);
+            const c = LinearRec2020(f32).fromCieXyz(xyz);
             break :blk .{ .linear_rec2020 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         .hsl => blk: {
-            const c = Hsl(f32).fromXyz(xyz);
+            const c = Hsl(f32).fromCieXyz(xyz);
             break :blk .{ .hsl = .{ .h = hueToC(c.h), .s = c.s, .l = c.l } };
         },
         .hsv => blk: {
-            const c = Hsv(f32).fromXyz(xyz);
+            const c = Hsv(f32).fromCieXyz(xyz);
             break :blk .{ .hsv = .{ .h = hueToC(c.h), .s = c.s, .v = c.v } };
         },
         .hwb => blk: {
-            const c = Hwb(f32).fromXyz(xyz);
+            const c = Hwb(f32).fromCieXyz(xyz);
             break :blk .{ .hwb = .{ .h = hueToC(c.h), .w = c.w, .b = c.b } };
         },
         .hsi => blk: {
-            const c = Hsi(f32).fromXyz(xyz);
+            const c = Hsi(f32).fromCieXyz(xyz);
             break :blk .{ .hsi = .{ .h = hueToC(c.h), .s = c.s, .i = c.i } };
         },
         .cmyk => blk: {
-            const c = Cmyk(f32).fromXyz(xyz);
+            const c = Cmyk(f32).fromCieXyz(xyz);
             break :blk .{ .cmyk = .{ .c = c.c, .m = c.m, .y = c.y, .k = c.k } };
         },
         .xyz => .{ .xyz = .{ .x = xyz.x, .y = xyz.y, .z = xyz.z } },
         .yxy => blk: {
-            const c = Yxy(f32).fromXyz(xyz);
+            const c = CieYxy(f32).fromCieXyz(xyz);
             break :blk .{ .yxy = .{ .luma = c.luma, .x = c.x, .y = c.y } };
         },
         .lab => blk: {
-            const c = Lab(f32).fromXyz(xyz);
+            const c = CieLab(f32).fromCieXyz(xyz);
             break :blk .{ .lab = .{ .l = c.l, .a = c.a, .b = c.b } };
         },
         .lch => blk: {
-            const c = Lch(f32).fromXyz(xyz);
+            const c = CieLch(f32).fromCieXyz(xyz);
             break :blk .{ .lch = .{ .l = c.l, .c = c.c, .h = hueToC(c.h) } };
         },
         .oklab => blk: {
-            const c = Oklab(f32).fromXyz(xyz);
+            const c = Oklab(f32).fromCieXyz(xyz);
             break :blk .{ .oklab = .{ .l = c.l, .a = c.a, .b = c.b } };
         },
         .oklch => blk: {
-            const c = Oklch(f32).fromXyz(xyz);
+            const c = Oklch(f32).fromCieXyz(xyz);
             break :blk .{ .oklch = .{ .l = c.l, .c = c.c, .h = hueToC(c.h) } };
         },
     } };
@@ -206,26 +206,26 @@ fn fromXyz(xyz: Xyz(f32), alpha: f32, space: Space) Color {
 // -- Exported C API --
 
 export fn chroma_convert(src: Color, dst_space: Space) Color {
-    const xyz = toXyz(src);
-    return fromXyz(xyz, src.alpha, dst_space);
+    const xyz = toCieXyz(src);
+    return fromCieXyz(xyz, src.alpha, dst_space);
 }
 
 export fn chroma_is_in_gamut(src: Color, gamut_space: Space) bool {
-    const xyz = toXyz(src);
+    const xyz = toCieXyz(src);
     return switch (gamut_space) {
-        .srgb, .srgb_u8 => Srgb(f32).fromXyz(xyz).isInGamut(),
-        .linear_srgb => LinearSrgb(f32).fromXyz(xyz).isInGamut(),
-        .display_p3 => DisplayP3(f32).fromXyz(xyz).isInGamut(),
-        .linear_display_p3 => LinearDisplayP3(f32).fromXyz(xyz).isInGamut(),
-        .rec2020 => Rec2020(f32).fromXyz(xyz).isInGamut(),
-        .rec2020_scene => Rec2020Scene(f32).fromXyz(xyz).isInGamut(),
-        .linear_rec2020 => LinearRec2020(f32).fromXyz(xyz).isInGamut(),
+        .srgb, .srgb_u8 => Srgb(f32).fromCieXyz(xyz).isInGamut(),
+        .linear_srgb => LinearSrgb(f32).fromCieXyz(xyz).isInGamut(),
+        .display_p3 => DisplayP3(f32).fromCieXyz(xyz).isInGamut(),
+        .linear_display_p3 => LinearDisplayP3(f32).fromCieXyz(xyz).isInGamut(),
+        .rec2020 => Rec2020(f32).fromCieXyz(xyz).isInGamut(),
+        .rec2020_scene => Rec2020Scene(f32).fromCieXyz(xyz).isInGamut(),
+        .linear_rec2020 => LinearRec2020(f32).fromCieXyz(xyz).isInGamut(),
         else => true, // non-RGB spaces have no gamut limits
     };
 }
 
 export fn chroma_gamut_map(src: Color, target_space: Space) Color {
-    const xyz = toXyz(src);
+    const xyz = toCieXyz(src);
     return .{ .space = target_space, .alpha = src.alpha, .data = switch (target_space) {
         .srgb => blk: {
             const c = lib.gamut.gamutMap(xyz, Srgb(f32));
@@ -261,7 +261,7 @@ export fn chroma_gamut_map(src: Color, target_space: Space) Color {
             break :blk .{ .linear_rec2020 = .{ .r = c.r, .g = c.g, .b = c.b } };
         },
         // Non-RGB targets: just convert, no gamut mapping needed
-        else => return fromXyz(xyz, src.alpha, target_space),
+        else => return fromCieXyz(xyz, src.alpha, target_space),
     } };
 }
 

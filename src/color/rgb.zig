@@ -8,13 +8,20 @@ pub const srgb = @import("rgb/srgb.zig");
 pub const display_p3 = @import("rgb/display_p3.zig");
 pub const rec2020 = @import("rgb/rec2020.zig");
 
+pub const DisplayP3 = display_p3.DisplayP3;
+pub const LinearDisplayP3 = display_p3.LinearDisplayP3;
+pub const Rec2020 = rec2020.Rec2020;
+pub const Rec2020Scene = rec2020.Rec2020Scene;
+pub const LinearRec2020 = rec2020.LinearRec2020;
+pub const Srgb = srgb.Srgb;
+pub const LinearSrgb = srgb.LinearSrgb;
+
 const Cmyk = @import("cmyk.zig").Cmyk;
-const Hsi = @import("hsi.zig").Hsi;
-const Hsl = @import("hsl.zig").Hsl;
-const Hsv = @import("hsv.zig").Hsv;
-const Hwb = @import("hwb.zig").Hwb;
-const Srgb = srgb.Srgb;
-const Xyz = @import("xyz.zig").Xyz;
+const Hsi = @import("hsm/hsi.zig").Hsi;
+const Hsl = @import("hsm/hsl.zig").Hsl;
+const Hsv = @import("hsm/hsv.zig").Hsv;
+const Hwb = @import("hsm/hwb.zig").Hwb;
+const CieXyz = @import("xyz/cie_xyz.zig").CieXyz;
 
 pub const RgbError = error{
     InvalidHexString,
@@ -57,20 +64,20 @@ pub fn packHex(r: u8, g: u8, b: u8) u24 {
     return @as(u24, r) << 16 | @as(u16, g) << 8 | b;
 }
 
-pub fn linearToXyz(matrix: [3][3]f32, linear: anytype) Xyz(rgbToFloatType(@TypeOf(linear).Backing)) {
+pub fn linearToCieXyz(matrix: [3][3]f32, linear: anytype) CieXyz(rgbToFloatType(@TypeOf(linear).Backing)) {
     const F = rgbToFloatType(@TypeOf(linear).Backing);
     const lin_r = rgbCast(F, linear.r);
     const lin_g = rgbCast(F, linear.g);
     const lin_b = rgbCast(F, linear.b);
 
-    return Xyz(F).init(
+    return CieXyz(F).init(
         lin_r * @as(F, matrix[0][0]) + lin_g * @as(F, matrix[0][1]) + lin_b * @as(F, matrix[0][2]),
         lin_r * @as(F, matrix[1][0]) + lin_g * @as(F, matrix[1][1]) + lin_b * @as(F, matrix[1][2]),
         lin_r * @as(F, matrix[2][0]) + lin_g * @as(F, matrix[2][1]) + lin_b * @as(F, matrix[2][2]),
     );
 }
 
-pub fn linearFromXyz(comptime LinearRgb: type, matrix: [3][3]f32, xyz: anytype) LinearRgb {
+pub fn linearFromCieXyz(comptime LinearRgb: type, matrix: [3][3]f32, xyz: anytype) LinearRgb {
     const F = rgbToFloatType(@TypeOf(xyz).Backing);
     const T = LinearRgb.Backing;
 

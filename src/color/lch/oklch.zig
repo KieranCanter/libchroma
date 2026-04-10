@@ -1,9 +1,9 @@
 const std = @import("std");
-const assertFloatType = @import("../validation.zig").assertFloatType;
-const color_formatter = @import("../color_formatter.zig");
+const assertFloatType = @import("../../validation.zig").assertFloatType;
+const color_formatter = @import("../../color_formatter.zig");
 
-const Oklab = @import("oklab.zig").Oklab;
-const Xyz = @import("xyz.zig").Xyz;
+const Oklab = @import("../lab/oklab.zig").Oklab;
+const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
 /// Type to hold an OKLCH value — the cylindrical form of OKLab.
 ///
@@ -30,15 +30,15 @@ pub fn Oklch(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {?d:.4}", .{ self.l, self.c, self.h });
+            try writer.print("{d}, {d}, {?d}", .{ self.l, self.c, self.h });
         }
 
-        pub fn toXyz(self: Self) Xyz(T) {
-            return self.toOklab().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(T) {
+            return self.toOklab().toCieXyz();
         }
 
-        pub fn fromXyz(xyz: Xyz(T)) Self {
-            return Oklab(T).fromXyz(xyz).toOklch();
+        pub fn fromCieXyz(xyz: CieXyz(T)) Self {
+            return Oklab(T).fromCieXyz(xyz).toOklch();
         }
 
         // OKLCH -> OKLab (polar to cartesian)
@@ -60,8 +60,8 @@ pub fn Oklch(comptime T: type) type {
 // TESTS
 // ============================================================================
 
-const validation = @import("../validation.zig");
-const chroma_testing = @import("../testing.zig");
+const validation = @import("../../validation.zig");
+const chroma_testing = @import("../../testing.zig");
 
 test "Oklch(f32) toOklab achromatic" {
     const tolerance = 0.002;
@@ -104,8 +104,8 @@ test "Oklch(f64) Oklab round-trip" {
 test "Oklch(f32) XYZ round-trip" {
     const tolerance = 0.002;
 
-    const original = Xyz(f32).init(0.2895, 0.2163, 0.0567);
-    const oklch = Oklch(f32).fromXyz(original);
-    const result = oklch.toXyz();
+    const original = CieXyz(f32).init(0.2895, 0.2163, 0.0567);
+    const oklch = Oklch(f32).fromCieXyz(original);
+    const result = oklch.toCieXyz();
     try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
 }

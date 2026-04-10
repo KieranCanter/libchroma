@@ -1,13 +1,13 @@
 const std = @import("std");
-const assertFloatType = @import("../validation.zig").assertFloatType;
-const validation = @import("../validation.zig");
-const chroma_testing = @import("../testing.zig");
-const color_formatter = @import("../color_formatter.zig");
+const assertFloatType = @import("../../validation.zig").assertFloatType;
+const validation = @import("../../validation.zig");
+const chroma_testing = @import("../../testing.zig");
+const color_formatter = @import("../../color_formatter.zig");
 
 const Hsl = @import("hsl.zig").Hsl;
 const Hwb = @import("hwb.zig").Hwb;
-const Srgb = @import("rgb/srgb.zig").Srgb;
-const Xyz = @import("xyz.zig").Xyz;
+const Srgb = @import("../rgb/srgb.zig").Srgb;
+const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
 /// Type to hold an HSV value.
 ///
@@ -34,15 +34,15 @@ pub fn Hsv(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{?d:.4}, {d:.4}, {d:.4}", .{ self.h, self.s, self.v });
+            try writer.print("{?d}, {d}, {d}", .{ self.h, self.s, self.v });
         }
 
-        pub fn toXyz(self: Self) Xyz(T) {
-            return self.toSrgb().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(T) {
+            return self.toSrgb().toCieXyz();
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return Srgb(T).fromXyz(xyz).toHsv();
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return Srgb(T).fromCieXyz(xyz).toHsv();
         }
 
         // Formula for HSV -> sRGB conversion:
@@ -120,7 +120,7 @@ test "Hsv(f32) toSrgb" {
 
 test "Hsv(f32) <-> XYZ round-trip" {
     const original = Hsv(f32).init(20.0, 0.75, 0.8);
-    const result = Hsv(f32).fromXyz(original.toXyz());
+    const result = Hsv(f32).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }
 

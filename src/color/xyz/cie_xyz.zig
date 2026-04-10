@@ -1,6 +1,6 @@
 const std = @import("std");
-const assertFloatType = @import("../validation.zig").assertFloatType;
-const color_formatter = @import("../color_formatter.zig");
+const assertFloatType = @import("../../validation.zig").assertFloatType;
+const color_formatter = @import("../../color_formatter.zig");
 
 /// Type to hold a CIE XYZ value. The central funnel for converting across the common color spaces
 /// like sRGB to the CIE LAB color spaces.
@@ -8,7 +8,7 @@ const color_formatter = @import("../color_formatter.zig");
 /// x: mix of the three CIE RGB curves in [0.0, inf)
 /// y: luminance value in [0.0, inf)
 /// z: quasi-blue value in [0.0, inf)
-pub fn Xyz(comptime T: type) type {
+pub fn CieXyz(comptime T: type) type {
     assertFloatType(T);
 
     return struct {
@@ -28,14 +28,14 @@ pub fn Xyz(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.x, self.y, self.z });
+            try writer.print("{d}, {d}, {d}", .{ self.x, self.y, self.z });
         }
 
-        pub fn toXyz(self: Self) Xyz(T) {
+        pub fn toCieXyz(self: Self) CieXyz(T) {
             return self;
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
+        pub fn fromCieXyz(xyz: anytype) Self {
             return .{ .x = @floatCast(xyz.x), .y = @floatCast(xyz.y), .z = @floatCast(xyz.z) };
         }
     };

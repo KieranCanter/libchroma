@@ -5,8 +5,8 @@
 const std = @import("std");
 const lib = @import("lib.zig");
 
-const Oklab = @import("color_space/oklab.zig").Oklab;
-const Oklch = @import("color_space/oklch.zig").Oklch;
+const Oklab = @import("color/lab/oklab.zig").Oklab;
+const Oklch = @import("color/lch/oklch.zig").Oklch;
 
 const JND = 0.02;
 const EPSILON = 0.0001;
@@ -72,9 +72,9 @@ pub fn gamutMap(src: anytype, comptime Dest: type) Dest {
 // ============================================================================
 
 const std_testing = std.testing;
-const Srgb = @import("color_space/rgb/srgb.zig").Srgb;
-const LinearSrgb = @import("color_space/rgb/srgb.zig").LinearSrgb;
-const DisplayP3 = @import("color_space/rgb/display_p3.zig").DisplayP3;
+const Srgb = @import("color/rgb/srgb.zig").Srgb;
+const LinearSrgb = @import("color/rgb/srgb.zig").LinearSrgb;
+const DisplayP3 = @import("color/rgb/display_p3.zig").DisplayP3;
 
 test "P3 green gamut mapped to sRGB is in gamut" {
     const p3_green = DisplayP3(f32).init(0, 1, 0);

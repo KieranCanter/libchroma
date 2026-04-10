@@ -1,6 +1,6 @@
 const std = @import("std");
-const validation = @import("validation.zig");
-const color_formatter = @import("color_formatter.zig");
+const validation = @import("../validation.zig");
+const color_formatter = @import("../color_formatter.zig");
 
 pub inline fn isAlpha(comptime T: type) bool {
     return @hasDecl(T, "Inner") and T == Alpha(T.Inner);
@@ -38,7 +38,7 @@ pub fn Alpha(comptime ColorType: type) type {
         /// Convert the inner color to a different color type, preserving alpha.
         pub fn convert(self: Self, comptime DestColor: type) Alpha(DestColor) {
             return Alpha(DestColor).init(
-                @import("lib.zig").convert(self.color, DestColor),
+                @import("../lib.zig").convert(self.color, DestColor),
                 self.alpha,
             );
         }
@@ -49,7 +49,7 @@ pub fn Alpha(comptime ColorType: type) type {
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try self.color.format(writer);
-            try writer.print(", {d:.4}", .{self.alpha});
+            try writer.print(", {d}", .{self.alpha});
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -65,8 +65,8 @@ pub fn Alpha(comptime ColorType: type) type {
 // TESTS
 // ============================================================================
 
-const Srgb = @import("color_space/rgb/srgb.zig").Srgb;
-const Hsl = @import("color_space/hsl.zig").Hsl;
+const Srgb = @import("rgb/srgb.zig").Srgb;
+const Hsl = @import("hsm/hsl.zig").Hsl;
 
 test "Alpha init and initOpaque" {
     const srgba = Alpha(Srgb(f32)).init(Srgb(f32).init(1, 0, 0), 0.5);
@@ -103,7 +103,7 @@ test "Alpha(Srgb(u8)) alpha is f32" {
 }
 
 test "universal convert preserves alpha (Alpha -> Alpha)" {
-    const lib = @import("lib.zig");
+    const lib = @import("../lib.zig");
     const srgba = Alpha(Srgb(f32)).init(Srgb(f32).init(0.784, 0.392, 0.196), 0.5);
     const hsla = lib.convert(srgba, Alpha(Hsl(f32)));
     try std.testing.expectApproxEqAbs(@as(f32, 0.5), hsla.alpha, 0.001);
@@ -111,14 +111,14 @@ test "universal convert preserves alpha (Alpha -> Alpha)" {
 }
 
 test "universal convert strips alpha (Alpha -> plain)" {
-    const lib = @import("lib.zig");
+    const lib = @import("../lib.zig");
     const srgba = Alpha(Srgb(f32)).init(Srgb(f32).init(0.784, 0.392, 0.196), 0.5);
     const hsl = lib.convert(srgba, Hsl(f32));
     try std.testing.expectApproxEqAbs(@as(f32, 19.999), hsl.h.?, 0.002);
 }
 
 test "universal convert adds default alpha (plain -> Alpha)" {
-    const lib = @import("lib.zig");
+    const lib = @import("../lib.zig");
     const srgb = Srgb(f32).init(0.784, 0.392, 0.196);
     const hsla = lib.convert(srgb, Alpha(Hsl(f32)));
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), hsla.alpha, 0.001);

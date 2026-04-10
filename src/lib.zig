@@ -8,60 +8,53 @@ comptime {
 // Namespaces
 // Access the full module: chroma.rgb, chroma.gamut, chroma.alpha, etc.
 
-pub const rgb = @import("color_space/rgb.zig");
-pub const cmyk = @import("color_space/cmyk.zig");
-pub const hsi = @import("color_space/hsi.zig");
-pub const hsl = @import("color_space/hsl.zig");
-pub const hsv = @import("color_space/hsv.zig");
-pub const hwb = @import("color_space/hwb.zig");
-pub const lab = @import("color_space/lab.zig");
-pub const lch = @import("color_space/lch.zig");
-pub const oklab = @import("color_space/oklab.zig");
-pub const oklch = @import("color_space/oklch.zig");
-pub const xyz = @import("color_space/xyz.zig");
-pub const yxy = @import("color_space/yxy.zig");
-pub const alpha = @import("alpha.zig");
+pub const color = @import("color.zig");
+pub const alpha = @import("color/alpha.zig");
 pub const gamut = @import("gamut.zig");
+pub const testing = @import("testing.zig");
 
 // Convenience shortcuts for major types like Colors and Alpha
 
-// RGB
-pub const Srgb = rgb.srgb.Srgb;
-pub const LinearSrgb = rgb.srgb.LinearSrgb;
-pub const DisplayP3 = rgb.display_p3.DisplayP3;
-pub const LinearDisplayP3 = rgb.display_p3.LinearDisplayP3;
-pub const Rec2020 = rgb.rec2020.Rec2020;
-pub const Rec2020Scene = rgb.rec2020.Rec2020Scene;
-pub const LinearRec2020 = rgb.rec2020.LinearRec2020;
+// Runtime color type
+pub const Color = color.Color;
+pub const Space = color.Space;
+pub const AlphaColor = color.AlphaColor;
 
-// Others
-pub const Cmyk = cmyk.Cmyk;
-pub const Hsi = hsi.Hsi;
-pub const Hsl = hsl.Hsl;
-pub const Hsv = hsv.Hsv;
-pub const Hwb = hwb.Hwb;
-pub const Lab = lab.Lab;
-pub const Lch = lch.Lch;
-pub const Oklab = oklab.Oklab;
-pub const Oklch = oklch.Oklch;
-pub const Xyz = xyz.Xyz;
-pub const Yxy = yxy.Yxy;
+// Color space types
+pub const Cmyk = color.Cmyk;
+pub const Hsi = color.Hsi;
+pub const Hsl = color.Hsl;
+pub const Hsv = color.Hsv;
+pub const Hwb = color.Hwb;
+pub const CieLab = color.CieLab;
+pub const CieLch = color.CieLch;
+pub const CieXyz = color.CieXyz;
+pub const CieYxy = color.CieYxy;
+pub const Oklab = color.Oklab;
+pub const Oklch = color.Oklch;
+pub const Srgb = color.Srgb;
+pub const LinearSrgb = color.LinearSrgb;
+pub const DisplayP3 = color.DisplayP3;
+pub const LinearDisplayP3 = color.LinearDisplayP3;
+pub const Rec2020 = color.Rec2020;
+pub const Rec2020Scene = color.Rec2020Scene;
+pub const LinearRec2020 = color.LinearRec2020;
+pub const RgbError = color.RgbError;
 
-// Alpha
+// Alpha wrapper
 pub const Alpha = alpha.Alpha;
 
-// Expose Color interface contract
+// Color interface contract
 const validation = @import("validation.zig");
 pub const assertColorInterface = validation.assertColorInterface;
 
-// Universal conversion
+// Universal conversion (comptime)
+
 pub fn convert(src: anytype, comptime Dest: type) Dest {
     const Src = @TypeOf(src);
     assertColorInterface(Src);
     assertColorInterface(Dest);
 
-    // anonymous function for converting after you ensure the src and dest are Color types and not wrapper types (e.g.
-    // Alpha);
     const convertInner = struct {
         inline fn func(src_color: anytype, comptime DestColor: type) DestColor {
             const SrcColor = @TypeOf(src_color);
@@ -91,13 +84,14 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
                 return @call(.auto, @field(DestColor, fromSrc_fn_name), .{src_color});
             }
 
-            return DestColor.fromXyz(src_color.toXyz());
+            return DestColor.fromCieXyz(src_color.toCieXyz());
         }
     }.func;
 
     const src_is_alpha = alpha.isAlpha(Src);
     const dest_is_alpha = alpha.isAlpha(Dest);
 
+    // Alpha -> Alpha
     if (src_is_alpha and dest_is_alpha) {
         return Dest.init(
             convertInner(src.color, Dest.Inner),
@@ -105,10 +99,12 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
         );
     }
 
+    // Alpha -> Opaque
     if (src_is_alpha) {
         return convertInner(src.color, Dest);
     }
 
+    // Opaque -> Alpha
     if (dest_is_alpha) {
         return Dest.initOpaque(convertInner(src, Dest.Inner));
     }
@@ -116,10 +112,8 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
     return convertInner(src, Dest);
 }
 
-// Testing namespace
-pub const testing = @import("testing.zig");
+// Tests
 
-// Run all tests
 test {
     std.testing.refAllDeclsRecursive(@This());
 }

@@ -1,13 +1,13 @@
 const std = @import("std");
-const assertFloatType = @import("../validation.zig").assertFloatType;
-const validation = @import("../validation.zig");
-const chroma_testing = @import("../testing.zig");
-const color_formatter = @import("../color_formatter.zig");
+const assertFloatType = @import("../../validation.zig").assertFloatType;
+const validation = @import("../../validation.zig");
+const chroma_testing = @import("../../testing.zig");
+const color_formatter = @import("../../color_formatter.zig");
 
 const Hsl = @import("hsl.zig").Hsl;
 const Hsv = @import("hsv.zig").Hsv;
-const Srgb = @import("rgb/srgb.zig").Srgb;
-const Xyz = @import("xyz.zig").Xyz;
+const Srgb = @import("../rgb/srgb.zig").Srgb;
+const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
 /// Type to hold an HSI value.
 ///
@@ -34,15 +34,15 @@ pub fn Hsi(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{?d:.4}, {d:.4}, {d:.4}", .{ self.h, self.s, self.i });
+            try writer.print("{?d}, {d}, {d}", .{ self.h, self.s, self.i });
         }
 
-        pub fn toXyz(self: Self) Xyz(T) {
-            return self.toSrgb().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(T) {
+            return self.toSrgb().toCieXyz();
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return Srgb(T).fromXyz(xyz).toHsi();
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return Srgb(T).fromCieXyz(xyz).toHsi();
         }
 
         // Formula for HSI -> sRGB conversion:
@@ -93,6 +93,6 @@ test "Hsi(f32) toSrgb" {
 
 test "Hsi(f32) <-> XYZ round-trip" {
     const original = Hsi(f32).init(20.0, 0.571, 0.467);
-    const result = Hsi(f32).fromXyz(original.toXyz());
+    const result = Hsi(f32).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }

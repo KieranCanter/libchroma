@@ -6,12 +6,12 @@ const rgb = @import("../rgb.zig");
 const rgbCast = @import("../rgb.zig").rgbCast;
 
 const Cmyk = @import("../cmyk.zig").Cmyk;
-const Hsi = @import("../hsi.zig").Hsi;
-const Hsl = @import("../hsl.zig").Hsl;
-const Hsv = @import("../hsv.zig").Hsv;
-const Hwb = @import("../hwb.zig").Hwb;
-const Xyz = @import("../xyz.zig").Xyz;
-const Yxy = @import("../yxy.zig").Yxy;
+const Hsi = @import("../hsm/hsi.zig").Hsi;
+const Hsl = @import("../hsm/hsl.zig").Hsl;
+const Hsv = @import("../hsm/hsv.zig").Hsv;
+const Hwb = @import("../hsm/hwb.zig").Hwb;
+const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
+const CieYxy = @import("../xyz/cie_yxy.zig").CieYxy;
 
 // Method for computing 3x3 RGB <-> XYZ matrices:
 // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -55,19 +55,19 @@ pub fn DisplayP3(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try writer.print("DisplayP3({s})({f})", .{ @typeName(T), self });
         }
 
-        pub fn toXyz(self: Self) Xyz(F) {
-            return self.toLinear().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(F) {
+            return self.toLinear().toCieXyz();
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return LinearDisplayP3(T).fromXyz(xyz).toP3();
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return LinearDisplayP3(T).fromCieXyz(xyz).toP3();
         }
 
         pub fn toLinear(self: Self) LinearDisplayP3(T) {
@@ -150,19 +150,19 @@ pub fn LinearDisplayP3(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try writer.print("LinearDisplayP3({s})({f})", .{ @typeName(T), self });
         }
 
-        pub fn toXyz(self: Self) Xyz(F) {
-            return rgb.linearToXyz(P3_TO_XYZ, self);
+        pub fn toCieXyz(self: Self) CieXyz(F) {
+            return rgb.linearToCieXyz(P3_TO_XYZ, self);
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return rgb.linearFromXyz(Self, XYZ_TO_P3, xyz);
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return rgb.linearFromCieXyz(Self, XYZ_TO_P3, xyz);
         }
 
         pub fn toP3(self: Self) DisplayP3(T) {
@@ -210,25 +210,25 @@ const tol64 = 0.000002;
 
 test "DisplayP3(f32) <-> XYZ round-trip" {
     const original = DisplayP3(f32).init(0.8, 0.4, 0.2);
-    const result = DisplayP3(f32).fromXyz(original.toXyz());
+    const result = DisplayP3(f32).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "DisplayP3(f64) <-> XYZ round-trip" {
     const original = DisplayP3(f64).init(0.8, 0.4, 0.2);
-    const result = DisplayP3(f64).fromXyz(original.toXyz());
+    const result = DisplayP3(f64).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
-test "DisplayP3(f32) toXyz known values" {
-    const xyz = DisplayP3(f32).init(0.8, 0.4, 0.2).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.336, 0.233, 0.041), xyz, tol32);
+test "DisplayP3(f32) toCieXyz known values" {
+    const xyz = DisplayP3(f32).init(0.8, 0.4, 0.2).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.336, 0.233, 0.041), xyz, tol32);
 
     // White -> D65
-    const white = DisplayP3(f32).init(1, 1, 1).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
+    const white = DisplayP3(f32).init(1, 1, 1).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.950, 1.000, 1.089), white, tol32);
 
-    try std.testing.expectEqual(Xyz(f32).init(0, 0, 0), DisplayP3(f32).init(0, 0, 0).toXyz());
+    try std.testing.expectEqual(CieXyz(f32).init(0, 0, 0), DisplayP3(f32).init(0, 0, 0).toCieXyz());
 }
 
 test "DisplayP3(f32) <-> LinearDisplayP3 round-trip" {
@@ -239,7 +239,7 @@ test "DisplayP3(f32) <-> LinearDisplayP3 round-trip" {
 
 test "DisplayP3 <-> sRGB cross-space" {
     // sRGB(0.8, 0.4, 0.2) -> XYZ -> P3
-    const srgb_xyz = Srgb(f32).init(0.8, 0.4, 0.2).toXyz();
-    const p3 = DisplayP3(f32).fromXyz(srgb_xyz);
+    const srgb_xyz = Srgb(f32).init(0.8, 0.4, 0.2).toCieXyz();
+    const p3 = DisplayP3(f32).fromCieXyz(srgb_xyz);
     try chroma_testing.expectColorsApproxEqAbs(DisplayP3(f32).init(0.749, 0.422, 0.248), p3, tol32);
 }

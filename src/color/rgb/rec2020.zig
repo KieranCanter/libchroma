@@ -6,12 +6,12 @@ const rgb = @import("../rgb.zig");
 const rgbCast = @import("../rgb.zig").rgbCast;
 
 const Cmyk = @import("../cmyk.zig").Cmyk;
-const Hsi = @import("../hsi.zig").Hsi;
-const Hsl = @import("../hsl.zig").Hsl;
-const Hsv = @import("../hsv.zig").Hsv;
-const Hwb = @import("../hwb.zig").Hwb;
-const Xyz = @import("../xyz.zig").Xyz;
-const Yxy = @import("../yxy.zig").Yxy;
+const Hsi = @import("../hsm/hsi.zig").Hsi;
+const Hsl = @import("../hsm/hsl.zig").Hsl;
+const Hsv = @import("../hsm/hsv.zig").Hsv;
+const Hwb = @import("../hsm/hwb.zig").Hwb;
+const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
+const CieYxy = @import("../xyz/cie_yxy.zig").CieYxy;
 
 // Method for computing 3x3 RGB <-> XYZ matrices:
 // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -54,19 +54,19 @@ pub fn Rec2020(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try writer.print("Rec2020({s})({f})", .{ @typeName(T), self.r, self.g, self.b });
         }
 
-        pub fn toXyz(self: Self) Xyz(F) {
-            return self.toLinear().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(F) {
+            return self.toLinear().toCieXyz();
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return LinearRec2020(T).fromXyz(xyz).toRec2020();
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return LinearRec2020(T).fromCieXyz(xyz).toRec2020();
         }
 
         pub fn toLinear(self: Self) LinearRec2020(T) {
@@ -146,7 +146,7 @@ pub fn Rec2020Scene(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -160,12 +160,12 @@ pub fn Rec2020Scene(comptime T: type) type {
             return Rec2020Scene(U).init(r, g, b);
         }
 
-        pub fn toXyz(self: Self) Xyz(F) {
-            return self.toLinear().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(F) {
+            return self.toLinear().toCieXyz();
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return LinearRec2020(T).fromXyz(xyz).toRec2020Scene();
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return LinearRec2020(T).fromCieXyz(xyz).toRec2020Scene();
         }
 
         pub fn toLinear(self: Self) LinearRec2020(T) {
@@ -251,19 +251,19 @@ pub fn LinearRec2020(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try writer.print("LinearRec2020({s})({f})", .{ @typeName(T), self });
         }
 
-        pub fn toXyz(self: Self) Xyz(F) {
-            return rgb.linearToXyz(REC2020_TO_XYZ, self);
+        pub fn toCieXyz(self: Self) CieXyz(F) {
+            return rgb.linearToCieXyz(REC2020_TO_XYZ, self);
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return rgb.linearFromXyz(Self, XYZ_TO_REC2020, xyz);
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return rgb.linearFromCieXyz(Self, XYZ_TO_REC2020, xyz);
         }
 
         pub fn toRec2020(self: Self) Rec2020(T) {
@@ -334,25 +334,25 @@ const tol64 = 0.000002;
 
 test "Rec2020(f32) <-> XYZ round-trip" {
     const original = Rec2020(f32).init(0.8, 0.4, 0.2);
-    const result = Rec2020(f32).fromXyz(original.toXyz());
+    const result = Rec2020(f32).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Rec2020(f64) <-> XYZ round-trip" {
     const original = Rec2020(f64).init(0.8, 0.4, 0.2);
-    const result = Rec2020(f64).fromXyz(original.toXyz());
+    const result = Rec2020(f64).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
-test "Rec2020(f32) toXyz known values" {
-    const xyz = Rec2020(f32).init(0.8, 0.4, 0.2).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.765, 0.733, 0.562), xyz, tol32);
+test "Rec2020(f32) toCieXyz known values" {
+    const xyz = Rec2020(f32).init(0.8, 0.4, 0.2).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.765, 0.733, 0.562), xyz, tol32);
 
     // White -> D65
-    const white = Rec2020(f32).init(1, 1, 1).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
+    const white = Rec2020(f32).init(1, 1, 1).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.950, 1.000, 1.089), white, tol32);
 
-    try std.testing.expectEqual(Xyz(f32).init(0, 0, 0), Rec2020(f32).init(0, 0, 0).toXyz());
+    try std.testing.expectEqual(CieXyz(f32).init(0, 0, 0), Rec2020(f32).init(0, 0, 0).toCieXyz());
 }
 
 test "Rec2020(f32) <-> LinearRec2020 round-trip" {
@@ -363,7 +363,7 @@ test "Rec2020(f32) <-> LinearRec2020 round-trip" {
 
 test "Rec2020Scene(f32) <-> XYZ round-trip" {
     const original = Rec2020Scene(f32).init(0.8, 0.4, 0.2);
-    const result = Rec2020Scene(f32).fromXyz(original.toXyz());
+    const result = Rec2020Scene(f32).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
@@ -375,7 +375,7 @@ test "Rec2020Scene(f32) <-> LinearRec2020 round-trip" {
 
 test "Rec2020 <-> sRGB cross-space" {
     // sRGB(0.8, 0.4, 0.2) -> XYZ -> Rec2020
-    const srgb_xyz = Srgb(f32).init(0.8, 0.4, 0.2).toXyz();
-    const r20 = Rec2020(f32).fromXyz(srgb_xyz);
+    const srgb_xyz = Srgb(f32).init(0.8, 0.4, 0.2).toCieXyz();
+    const r20 = Rec2020(f32).fromCieXyz(srgb_xyz);
     try chroma_testing.expectColorsApproxEqAbs(Rec2020(f32).init(0.128, 0.013, 0.001), r20, tol32);
 }

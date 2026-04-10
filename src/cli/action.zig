@@ -1,9 +1,9 @@
 const std = @import("std");
+const lib = @import("libchroma");
 const Allocator = std.mem.Allocator;
-
 const convert = @import("convert.zig");
+const fmt = @import("format.zig");
 const show = @import("show.zig");
-const SpaceArg = @import("space_arg.zig").SpaceArg;
 
 pub const ActionError = error{HelpRequested};
 
@@ -32,42 +32,53 @@ pub const Action = enum {
         };
         stdout.writeAll(output) catch {};
 
-        stdout.writeAll("Available spaces:\n") catch {};
-        SpaceArg.printNames(stdout);
+        stdout.writeAll("\nAvailable spaces:\n") catch {};
+        inline for (@typeInfo(lib.Space).@"enum".fields) |field| {
+            const space: lib.Space = @enumFromInt(field.value);
+            stdout.print("  {s}\n", .{comptime fmt.spaceCliName(space)}) catch {};
+        }
         stdout.flush() catch {};
     }
 
     const help_convert =
         \\Convert a color to a target color space.
         \\
-        \\Usage: chroma convert <color> <space>
+        \\Usage: chroma convert <color> <space> [options]
+        \\
+        \\Options:
+        \\  --precision N      Decimal places (default: 2)
+        \\  --json             Output as JSON
         \\
         \\Color formats:
         \\  #RRGGBB            Hex with hash
         \\  RRGGBB             Hex without hash
-        \\  rgb(r, g, b)       RGB with values 0-255
+        \\  rgb(r, g, b)       RGB with values 0-255 (auto-detected) or 0-1
         \\  space(v1, v2, v3)  Any supported color space
         \\
         \\Example:
         \\  chroma convert "#C86432" oklch
-        \\  chroma convert "oklch(0.6138, 0.1423, 45.08)" srgb
+        \\  chroma convert "#C86432" oklch --json
         \\
     ;
 
     const help_show =
         \\Show a color in all supported color spaces.
         \\
-        \\Usage: chroma show <color>
+        \\Usage: chroma show <color> [options]
+        \\
+        \\Options:
+        \\  --precision N      Decimal places (default: 2)
+        \\  --json             Output as JSON
         \\
         \\Color formats:
         \\  #RRGGBB            Hex with hash
         \\  RRGGBB             Hex without hash
-        \\  rgb(r, g, b)       RGB with values 0-255
+        \\  rgb(r, g, b)       RGB with values 0-255 (auto-detected) or 0-1
         \\  space(v1, v2, v3)  Any supported color space
         \\
         \\Example:
         \\  chroma show "#C86432"
-        \\  chroma show "oklch(0.6138, 0.1423, 45.08)"
+        \\  chroma show "#C86432" --json --precision 4
         \\
     ;
 };

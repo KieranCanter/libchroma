@@ -1,10 +1,10 @@
 const std = @import("std");
-const assertFloatType = @import("../validation.zig").assertFloatType;
-const color_formatter = @import("../color_formatter.zig");
+const assertFloatType = @import("../../validation.zig").assertFloatType;
+const color_formatter = @import("../../color_formatter.zig");
 
-const LinearSrgb = @import("rgb/srgb.zig").LinearSrgb;
-const Oklch = @import("oklch.zig").Oklch;
-const Xyz = @import("xyz.zig").Xyz;
+const LinearSrgb = @import("../rgb/srgb.zig").LinearSrgb;
+const Oklch = @import("../lch/oklch.zig").Oklch;
+const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
 // OKLab matrices from Björn Ottosson's specification:
 // https://bottosson.github.io/posts/oklab/
@@ -62,17 +62,17 @@ pub fn Oklab(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.l, self.a, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.l, self.a, self.b });
         }
 
         // OKLab -> XYZ via linear sRGB
-        pub fn toXyz(self: Self) Xyz(T) {
-            return self.toLinearSrgb().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(T) {
+            return self.toLinearSrgb().toCieXyz();
         }
 
         // XYZ -> OKLab via linear sRGB
-        pub fn fromXyz(xyz: Xyz(T)) Self {
-            return Self.fromLinearSrgb(LinearSrgb(T).fromXyz(xyz));
+        pub fn fromCieXyz(xyz: CieXyz(T)) Self {
+            return Self.fromLinearSrgb(LinearSrgb(T).fromCieXyz(xyz));
         }
 
         // OKLab -> linear sRGB (M2_INV -> cube -> M1_INV)
@@ -122,9 +122,9 @@ pub fn Oklab(comptime T: type) type {
 // TESTS
 // ============================================================================
 
-const Srgb = @import("rgb/srgb.zig").Srgb;
-const validation = @import("../validation.zig");
-const chroma_testing = @import("../testing.zig");
+const Srgb = @import("../rgb/srgb.zig").Srgb;
+const validation = @import("../../validation.zig");
+const chroma_testing = @import("../../testing.zig");
 
 test "Oklab(f32) fromLinearSrgb" {
     const tolerance = 0.002;

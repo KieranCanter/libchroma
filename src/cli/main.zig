@@ -1,6 +1,7 @@
 const std = @import("std");
+const lib = @import("libchroma");
 const Action = @import("action.zig").Action;
-const SpaceArg = @import("space_arg.zig").SpaceArg;
+const fmt = @import("format.zig");
 
 pub fn main() u8 {
     run() catch |err| {
@@ -43,7 +44,7 @@ fn run() !void {
 }
 
 fn printUsage(file: std.fs.File) void {
-    var buf: [2048]u8 = undefined;
+    var buf: [4096]u8 = undefined;
     var w = file.writer(&buf);
     const out = &w.interface;
     out.print(
@@ -57,6 +58,9 @@ fn printUsage(file: std.fs.File) void {
         \\
     , .{}) catch {};
     out.print("Spaces:\n", .{}) catch {};
-    SpaceArg.printNames(out);
+    inline for (@typeInfo(lib.Space).@"enum".fields) |field| {
+        const space: lib.Space = @enumFromInt(field.value);
+        out.print("  {s}\n", .{comptime fmt.spaceCliName(space)}) catch {};
+    }
     out.flush() catch {};
 }

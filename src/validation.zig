@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const Xyz = @import("color_space/xyz.zig").Xyz;
+const CieXyz = @import("color/xyz/cie_xyz.zig").CieXyz;
 
-const alpha = @import("alpha.zig");
+const alpha = @import("color/alpha.zig");
 
 // Color interface validation
 pub inline fn assertColorInterface(comptime T: type) void {
@@ -13,14 +13,14 @@ pub inline fn assertColorInterface(comptime T: type) void {
         }
 
         const color_space_name = colorSpaceName(T);
-        if (!std.meta.hasMethod(T, "toXyz")) {
-            @compileError(color_space_name ++ " must define a `toXyz()` method");
+        if (!std.meta.hasMethod(T, "toCieXyz")) {
+            @compileError(color_space_name ++ " must define a `toCieXyz()` method");
         }
-        if (!std.meta.hasMethod(T, "fromXyz")) {
-            @compileError(color_space_name ++ " must define a `fromXyz()` method");
+        if (!std.meta.hasMethod(T, "fromCieXyz")) {
+            @compileError(color_space_name ++ " must define a `fromCieXyz()` method");
         }
         if (!@hasDecl(T, "Backing")) {
-            @compileError(color_space_name ++ " must expose its backing type in a field `pub const Backing = T`");
+            @compileError(color_space_name ++ " must expose its backing type in a `Backing` field e.g. `pub const Backing = T`");
         }
     }
 }

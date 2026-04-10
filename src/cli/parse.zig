@@ -1,8 +1,6 @@
-// Color string parser for CLI.
-// Supports: #RRGGBB, RRGGBB, and space(v1, v2, ...) for all color spaces.
-
 const std = @import("std");
 const lib = @import("libchroma");
+const fmt = @import("format.zig");
 
 pub const ParseError = error{
     InvalidHexFormat,
@@ -12,23 +10,8 @@ pub const ParseError = error{
     UnknownSpace,
 };
 
-pub const CommandArgs = struct {
-    xyz: lib.Xyz(f32),
-};
-
-/// Extract and parse the color arg from an existing arg iterator.
-/// Returns null if --help is requested or no color arg is provided.
-pub fn parseCommandArgs(args: *std.process.ArgIterator) ParseError!?CommandArgs {
-    const color_str = args.next() orelse return null;
-    if (std.mem.eql(u8, color_str, "--help") or std.mem.eql(u8, color_str, "-h"))
-        return null;
-
-    const xyz = try parse(color_str);
-    return .{ .xyz = xyz };
-}
-
-/// Parse a color string and return it as XYZ for uniform interchange.
-pub fn parse(input: []const u8) ParseError!lib.Xyz(f32) {
+/// Parse a color string and return a Color.
+pub fn parse(input: []const u8) !lib.Color {
     const s = std.mem.trim(u8, input, " \t");
     if (isHexLike(s)) return parseHex(s);
     if (std.mem.indexOfScalar(u8, s, '(') != null) return parseFunc(s);
@@ -47,14 +30,14 @@ fn isHexLike(s: []const u8) bool {
     return false;
 }
 
-fn parseHex(s: []const u8) ParseError!lib.Xyz(f32) {
+fn parseHex(s: []const u8) !lib.Color {
     const hex_str = if (s[0] == '#') s[1..] else s;
     if (hex_str.len != 6) return ParseError.InvalidHexFormat;
-    const srgb = lib.Srgb(f32).initFromHexString(hex_str) catch return ParseError.InvalidHexFormat;
-    return srgb.toXyz();
+    const srgb = try lib.Srgb(f32).initFromHexString(hex_str);
+    return .{ .srgb = srgb };
 }
 
-fn parseFunc(s: []const u8) ParseError!lib.Xyz(f32) {
+fn parseFunc(s: []const u8) ParseError!lib.Color {
     const paren = std.mem.indexOfScalar(u8, s, '(') orelse return ParseError.InvalidFuncFormat;
     if (s.len == 0 or s[s.len - 1] != ')') return ParseError.InvalidFuncFormat;
 
@@ -69,39 +52,15 @@ fn parseFunc(s: []const u8) ParseError!lib.Xyz(f32) {
         vals[count] = v;
         count += 1;
     }
+    if (count < 3) return ParseError.InvalidValues;
 
-    if (count == 3) {
-        const a = vals[0];
-        const b = vals[1];
-        const c = vals[2];
-
-        if (std.mem.eql(u8, name, "srgb")) return lib.Srgb(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "srgb-u8") or std.mem.eql(u8, name, "rgb")) return lib.Srgb(f32).init(a / 255.0, b / 255.0, c / 255.0).toXyz();
-        if (std.mem.eql(u8, name, "linear-srgb")) return lib.LinearSrgb(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "hsl")) return lib.Hsl(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "hsv")) return lib.Hsv(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "hwb")) return lib.Hwb(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "hsi")) return lib.Hsi(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "lab")) return lib.Lab(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "lch")) return lib.Lch(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "oklab")) return lib.Oklab(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "oklch")) return lib.Oklch(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "display-p3")) return lib.DisplayP3(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "linear-display-p3")) return lib.LinearDisplayP3(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "rec2020")) return lib.Rec2020(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "rec2020-scene")) return lib.Rec2020Scene(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "linear-rec2020")) return lib.LinearRec2020(f32).init(a, b, c).toXyz();
-        if (std.mem.eql(u8, name, "xyz")) return lib.Xyz(f32).init(a, b, c);
-        if (std.mem.eql(u8, name, "yxy")) return lib.Yxy(f32).init(a, b, c).toXyz();
-        return ParseError.UnknownSpace;
+    // Auto-detect u8 sRGB: if space is srgb and any value > 1, treat as 0-255
+    const space = fmt.spaceFromCliName(name) orelse return ParseError.UnknownSpace;
+    if (space == .srgb and count == 3 and (vals[0] > 1 or vals[1] > 1 or vals[2] > 1)) {
+        return .{ .srgb = lib.Srgb(f32).init(vals[0] / 255.0, vals[1] / 255.0, vals[2] / 255.0) };
     }
 
-    if (count == 4) {
-        if (std.mem.eql(u8, name, "cmyk")) return lib.Cmyk(f32).init(vals[0], vals[1], vals[2], vals[3]).toXyz();
-        return ParseError.UnknownSpace;
-    }
-
-    return ParseError.InvalidValues;
+    return lib.color.initFromSlice(space, vals[0..count]) catch return ParseError.InvalidValues;
 }
 
 fn nextFloat(it: anytype) ?f32 {

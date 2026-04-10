@@ -12,6 +12,8 @@ pub fn build(b: *std.Build) !void {
     });
 
     const semver = try incrementBuildNumber(b);
+
+    // Static and dynamic library defs
     const staticLib = b.addLibrary(.{
         .name = "chroma",
         .linkage = .static,
@@ -32,6 +34,7 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "",
     });
 
+    // Build lib step
     const lib_step = b.step("lib", "Build only the library (static + dynamic)");
     lib_step.dependOn(&staticLib.step);
     lib_step.dependOn(&dynLib.step);
@@ -49,6 +52,7 @@ pub fn build(b: *std.Build) !void {
     });
     b.installArtifact(exe);
 
+    // Build CLI step
     const cli_step = b.step("cli", "Build only the CLI executable");
     cli_step.dependOn(&exe.step);
 
@@ -57,9 +61,19 @@ pub fn build(b: *std.Build) !void {
     });
     const run_mod_tests = b.addRunArtifact(mod_tests);
 
+    // Run exe step
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| run_cmd.addArgs(args);
+    const run_step = b.step("run", "Run the CLI");
+    run_step.dependOn(&run_cmd.step);
+
+
+    // Test step
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
 
+    // Nuke step
     const nuke_step = b.step("nuke", "Remove all build artifacts and cache");
     nuke_step.dependOn(&b.addRemoveDirTree(b.path(".zig-cache")).step);
     nuke_step.dependOn(&b.addRemoveDirTree(b.path("zig-out")).step);

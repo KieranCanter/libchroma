@@ -5,11 +5,11 @@ const color_formatter = @import("../../color_formatter.zig");
 const rgb = @import("../rgb.zig");
 
 const Cmyk = @import("../cmyk.zig").Cmyk;
-const Hsi = @import("../hsi.zig").Hsi;
-const Hsl = @import("../hsl.zig").Hsl;
-const Hsv = @import("../hsv.zig").Hsv;
-const Hwb = @import("../hwb.zig").Hwb;
-const Xyz = @import("../xyz.zig").Xyz;
+const Hsi = @import("../hsm/hsi.zig").Hsi;
+const Hsl = @import("../hsm/hsl.zig").Hsl;
+const Hsv = @import("../hsm/hsv.zig").Hsv;
+const Hwb = @import("../hsm/hwb.zig").Hwb;
+const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
 const rgbCast = rgb.rgbCast;
 const RgbError = rgb.RgbError;
@@ -83,19 +83,19 @@ pub fn Srgb(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try writer.print("Srgb({s})({f})[#{X}]", .{ @typeName(T), self, self.toHex() });
         }
 
-        pub fn toXyz(self: Self) Xyz(F) {
-            return self.toLinear().toXyz();
+        pub fn toCieXyz(self: Self) CieXyz(F) {
+            return self.toLinear().toCieXyz();
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            const srgb_f = LinearSrgb(F).fromXyz(xyz).toSrgb();
+        pub fn fromCieXyz(xyz: anytype) Self {
+            const srgb_f = LinearSrgb(F).fromCieXyz(xyz).toSrgb();
             if (T == F) return srgb_f;
             // T is u8, F is f32 — convert float sRGB to u8
             return Self.init(
@@ -184,19 +184,19 @@ pub fn LinearSrgb(comptime T: type) type {
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("{d:.4}, {d:.4}, {d:.4}", .{ self.r, self.g, self.b });
+            try writer.print("{d}, {d}, {d}", .{ self.r, self.g, self.b });
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
             try writer.print("LinearSrgb({s})({f})", .{ @typeName(T), self });
         }
 
-        pub fn toXyz(self: Self) Xyz(T) {
-            return rgb.linearToXyz(SRGB_TO_XYZ, self);
+        pub fn toCieXyz(self: Self) CieXyz(T) {
+            return rgb.linearToCieXyz(SRGB_TO_XYZ, self);
         }
 
-        pub fn fromXyz(xyz: anytype) Self {
-            return rgb.linearFromXyz(Self, XYZ_TO_SRGB, xyz);
+        pub fn fromCieXyz(xyz: anytype) Self {
+            return rgb.linearFromCieXyz(Self, XYZ_TO_SRGB, xyz);
         }
 
         pub fn toSrgb(self: Self) Srgb(T) {
@@ -270,27 +270,27 @@ test "Srgb gamma edge cases" {
 
 test "Srgb(f32) <-> XYZ round-trip" {
     const original = Srgb(f32).init(0.8, 0.4, 0.2);
-    const result = Srgb(f32).fromXyz(original.toXyz());
+    const result = Srgb(f32).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
 test "Srgb(f64) <-> XYZ round-trip" {
     const original = Srgb(f64).init(0.8, 0.4, 0.2);
-    const result = Srgb(f64).fromXyz(original.toXyz());
+    const result = Srgb(f64).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
-test "Srgb(f32) toXyz known values" {
+test "Srgb(f32) toCieXyz known values" {
     // sRGB(0.8, 0.4, 0.2) -> XYZ
-    const xyz = Srgb(f32).init(0.8, 0.4, 0.2).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
+    const xyz = Srgb(f32).init(0.8, 0.4, 0.2).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
 
     // White -> D65 white point
-    const white = Srgb(f32).init(1, 1, 1).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.950, 1.000, 1.089), white, tol32);
+    const white = Srgb(f32).init(1, 1, 1).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.950, 1.000, 1.089), white, tol32);
 
     // Black
-    try std.testing.expectEqual(Xyz(f32).init(0, 0, 0), Srgb(f32).init(0, 0, 0).toXyz());
+    try std.testing.expectEqual(CieXyz(f32).init(0, 0, 0), Srgb(f32).init(0, 0, 0).toCieXyz());
 }
 
 // --- Srgb → cylindrical/subtractive shortcuts ---
@@ -351,20 +351,20 @@ test "Srgb(f32) toCmyk" {
 
 // --- Srgb u8 implicit cast ---
 
-test "Srgb(u8) toXyz produces f32" {
-    const xyz = Srgb(u8).init(200, 100, 50).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.289, 0.216, 0.056), xyz, tol32);
+test "Srgb(u8) toCieXyz produces f32" {
+    const xyz = Srgb(u8).init(200, 100, 50).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.289, 0.216, 0.056), xyz, tol32);
 }
 
 // --- LinearSrgb ---
 
 test "LinearSrgb(f32) <-> XYZ round-trip" {
     const original = LinearSrgb(f32).init(0.604, 0.133, 0.033);
-    const result = LinearSrgb(f32).fromXyz(original.toXyz());
+    const result = LinearSrgb(f32).fromCieXyz(original.toCieXyz());
     try chroma_testing.expectColorsApproxEqAbs(original, result, tol32);
 }
 
-test "LinearSrgb(f32) toXyz known values" {
-    const xyz = LinearSrgb(f32).init(0.604, 0.133, 0.033).toXyz();
-    try chroma_testing.expectColorsApproxEqAbs(Xyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
+test "LinearSrgb(f32) toCieXyz known values" {
+    const xyz = LinearSrgb(f32).init(0.604, 0.133, 0.033).toCieXyz();
+    try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.302, 0.226, 0.059), xyz, tol32);
 }
