@@ -42,7 +42,6 @@ pub fn build(b: *std.Build) !void {
     const lib_tests = b.addTest(.{
         .root_module = lib_mod,
     });
-    lib_tests.root_module.addIncludePath(b.path("include"));
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
     // CLI executable
