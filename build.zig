@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Library
-    const mod = b.addModule("libchroma", .{
+    const lib_mod = b.addModule("libchroma", .{
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
@@ -17,13 +17,13 @@ pub fn build(b: *std.Build) !void {
     const staticLib = b.addLibrary(.{
         .name = "chroma",
         .linkage = .static,
-        .root_module = mod,
+        .root_module = lib_mod,
         .version = semver,
     });
     const dynLib = b.addLibrary(.{
         .name = "chroma",
         .linkage = .dynamic,
-        .root_module = mod,
+        .root_module = lib_mod,
         .version = semver,
     });
     b.installArtifact(staticLib);
@@ -38,6 +38,12 @@ pub fn build(b: *std.Build) !void {
     const lib_step = b.step("lib", "Build only the library (static + dynamic)");
     lib_step.dependOn(&staticLib.step);
     lib_step.dependOn(&dynLib.step);
+    // Lib tests
+    const lib_tests = b.addTest(.{
+        .root_module = lib_mod,
+    });
+    lib_tests.root_module.addIncludePath(b.path("include"));
+    const run_lib_tests = b.addRunArtifact(lib_tests);
 
     // CLI executable
     const exe_mod = b.createModule(.{
@@ -45,7 +51,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    exe_mod.addImport("libchroma", mod);
+    exe_mod.addImport("libchroma", lib_mod);
     const exe = b.addExecutable(.{
         .name = "chroma",
         .root_module = exe_mod,
@@ -55,11 +61,11 @@ pub fn build(b: *std.Build) !void {
     // Build CLI step
     const cli_step = b.step("cli", "Build only the CLI executable");
     cli_step.dependOn(&exe.step);
-
-    const mod_tests = b.addTest(.{
-        .root_module = mod,
+    // CLI tests
+    const exe_tests = b.addTest(.{
+        .root_module = exe_mod,
     });
-    const run_mod_tests = b.addRunArtifact(mod_tests);
+    const run_exe_tests = b.addRunArtifact(exe_tests);
 
     // Run exe step
     const run_cmd = b.addRunArtifact(exe);
@@ -68,15 +74,25 @@ pub fn build(b: *std.Build) !void {
     const run_step = b.step("run", "Run the CLI");
     run_step.dependOn(&run_cmd.step);
 
-
     // Test step
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_mod_tests.step);
+    const TestType = enum { lib, exe };
+    const test_type = b.option(TestType, "test", "Test module (leave blank for all)");
+    const test_step = b.step("test", "Run tests (-Dscope lib|exe)");
+    if (test_type == null or test_type.? == TestType.lib)
+        test_step.dependOn(&run_lib_tests.step);
+    if (test_type == null or test_type.? == TestType.exe)
+        test_step.dependOn(&run_exe_tests.step);
 
     // Nuke step
     const nuke_step = b.step("nuke", "Remove all build artifacts and cache");
     nuke_step.dependOn(&b.addRemoveDirTree(b.path(".zig-cache")).step);
     nuke_step.dependOn(&b.addRemoveDirTree(b.path("zig-out")).step);
+
+    const check_step = b.step("check", "Check if libchroma compiles");
+    check_step.dependOn(&exe.step);
+    check_step.dependOn(&staticLib.step);
+    check_step.dependOn(&dynLib.step);
+    check_step.dependOn(&run_lib_tests.step);
 }
 
 fn incrementBuildNumber(b: *std.Build) !std.SemanticVersion {

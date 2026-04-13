@@ -52,7 +52,7 @@ fn printUsage(file: std.fs.File) void {
         \\
         \\Commands:
         \\  convert <color> <space>   Convert a color to a target space
-        \\  show <color>              Show a color in all spaces
+        \\  info <color>              Show a color in all spaces
         \\
         \\Color formats: #RRGGBB, RRGGBB, space(v1, v2, v3)
         \\

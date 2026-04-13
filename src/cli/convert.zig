@@ -5,6 +5,28 @@ const action = @import("action.zig");
 const fmt = @import("format.zig");
 const parse = @import("parse.zig");
 
+pub const help =
+    \\Convert a color to a target color space.
+    \\
+    \\Usage: chroma convert <color> <space> [options]
+    \\
+    \\Options:
+    \\  --precision N      Decimal places (default: 2)
+    \\  --json             Output as JSON
+    \\
+    \\Color formats:
+    \\  #RRGGBB            Hex with hash
+    \\  RRGGBB             Hex without hash
+    \\  rgb(r, g, b)       RGB with values 0-255 (auto-detected) or 0-1
+    \\  space(v1, v2, v3)  Any supported color space
+    \\
+    \\Example:
+    \\  chroma convert "#C86432" oklch
+    \\  chroma convert "#C86432" oklch --json
+    \\  chroma convert "#C86432" oklch --precision 4
+    \\
+;
+
 pub fn run(alloc: Allocator, args: *std.process.ArgIterator) !void {
     _ = alloc;
     var out_buf: [4096]u8 = undefined;

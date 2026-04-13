@@ -2,7 +2,7 @@ const std = @import("std");
 
 // C ABI exports (pull in so export fn symbols are included in the library)
 comptime {
-    _ = @import("c/chroma.zig");
+    _ = @import("c/chroma_c.zig");
 }
 
 // Namespaces

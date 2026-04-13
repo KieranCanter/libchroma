@@ -59,32 +59,36 @@ const color_spaces = .{
 
 const n_spaces = color_spaces.len;
 
+// Build field names from color spaces array above to use for enum and union types (convert from PascalCase to
+// snake_case).
 const field_names: [n_spaces][]const u8 = blk: {
     // Raise the comptime branch limit (default 1000) since generating snake_case names for all color spaces requires
     // many evaluations.
-    @setEvalBranchQuota(10000);
+    @setEvalBranchQuota(10_000);
     var result: [n_spaces][]const u8 = undefined;
     for (0..n_spaces) |i| result[i] = std.fmt.comptimePrint("{s}", .{toSnakeCase(typeName(color_spaces[i]))});
     break :blk result;
 };
 
-const field_types: [n_spaces]type = blk: {
-    var result: [n_spaces]type = undefined;
-    for (0..n_spaces) |i| result[i] = color_spaces[i](f32);
-    break :blk result;
-};
-
+// Build the tag values for the enum as simple u8s from 0..n-1.
 const tag_values: [n_spaces]u8 = blk: {
     var result: [n_spaces]u8 = undefined;
     for (0..n_spaces) |i| result[i] = i;
     break :blk result;
 };
 
+// Build the union types per tag based on the color spaces array defined above.
+const field_types: [n_spaces]type = blk: {
+    var result: [n_spaces]type = undefined;
+    for (0..n_spaces) |i| result[i] = color_spaces[i](f32);
+    break :blk result;
+};
+
+// Empty array needed to represent no attributes for union.
 const no_attrs: [n_spaces]std.builtin.Type.UnionField.Attributes = @splat(.{});
 
 pub const Space = @Enum(u8, .exhaustive, &field_names, &tag_values);
 pub const Color = @Union(.auto, Space, &field_names, &field_types, &no_attrs);
-
 pub const AlphaColor = struct {
     color: Color,
     a: f32 = 1.0,

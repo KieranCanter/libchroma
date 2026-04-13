@@ -101,3 +101,88 @@ fn nextFloat(it: anytype) ?f32 {
     }
     return null;
 }
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+const testing = std.testing;
+
+test "parse hex 6-char with #" {
+    const r = try parse("#C86432");
+    try testing.expectEqual(.srgb, std.meta.activeTag(r.color));
+    try testing.expectApproxEqAbs(@as(f32, 0.784), r.color.srgb.r, 0.002);
+    try testing.expectEqual(@as(?f32, null), r.alpha);
+}
+
+test "parse hex 6-char without #" {
+    const r = try parse("C86432");
+    try testing.expectEqual(.srgb, std.meta.activeTag(r.color));
+}
+
+test "parse hex 8-char with alpha" {
+    const r = try parse("#C8643280");
+    try testing.expectApproxEqAbs(@as(f32, 0.784), r.color.srgb.r, 0.002);
+    try testing.expectApproxEqAbs(@as(f32, 0.502), r.alpha.?, 0.002);
+}
+
+test "parse functional srgb float" {
+    const r = try parse("srgb(0.5, 0.3, 0.1)");
+    try testing.expectEqual(.srgb, std.meta.activeTag(r.color));
+    try testing.expectApproxEqAbs(@as(f32, 0.5), r.color.srgb.r, 0.001);
+}
+
+test "parse functional srgb u8 auto-detect" {
+    const r = try parse("srgb(200, 100, 50)");
+    try testing.expectApproxEqAbs(@as(f32, 0.784), r.color.srgb.r, 0.002);
+}
+
+test "parse functional rgb alias" {
+    const r = try parse("rgb(200, 100, 50)");
+    try testing.expectEqual(.srgb, std.meta.activeTag(r.color));
+}
+
+test "parse functional oklch" {
+    const r = try parse("oklch(0.61, 0.14, 45)");
+    try testing.expectEqual(.oklch, std.meta.activeTag(r.color));
+    try testing.expectApproxEqAbs(@as(f32, 0.61), r.color.oklch.l, 0.001);
+}
+
+test "parse functional with alpha" {
+    const r = try parse("oklch(0.61, 0.14, 45, 0.5)");
+    try testing.expectApproxEqAbs(@as(f32, 0.5), r.alpha.?, 0.001);
+}
+
+test "parse functional cmyk (4 values)" {
+    const r = try parse("cmyk(0.1, 0.2, 0.3, 0.4)");
+    try testing.expectEqual(.cmyk, std.meta.activeTag(r.color));
+    try testing.expectApproxEqAbs(@as(f32, 0.4), r.color.cmyk.k, 0.001);
+}
+
+test "parse functional cmyk with alpha (5 values)" {
+    const r = try parse("cmyk(0.1, 0.2, 0.3, 0.4, 0.8)");
+    try testing.expectApproxEqAbs(@as(f32, 0.8), r.alpha.?, 0.001);
+}
+
+test "parse space aliases" {
+    try testing.expectEqual(.cie_xyz, std.meta.activeTag((try parse("xyz(0.5, 0.5, 0.5)")).color));
+    try testing.expectEqual(.cie_lab, std.meta.activeTag((try parse("lab(50, 20, -30)")).color));
+    try testing.expectEqual(.cie_lch, std.meta.activeTag((try parse("lch(50, 30, 180)")).color));
+    try testing.expectEqual(.cie_yxy, std.meta.activeTag((try parse("yxy(0.5, 0.3, 0.3)")).color));
+}
+
+test "parse invalid format" {
+    try testing.expectError(ParseError.InvalidFormat, parse("not a color"));
+}
+
+test "parse invalid hex length" {
+    try testing.expectError(ParseError.InvalidHexFormat, parse("#ABC"));
+}
+
+test "parse unknown space" {
+    try testing.expectError(ParseError.UnknownSpace, parse("fakespace(1, 2, 3)"));
+}
+
+test "parse too few values" {
+    try testing.expectError(ParseError.InvalidValues, parse("srgb(0.5, 0.3)"));
+}
