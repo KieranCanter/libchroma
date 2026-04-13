@@ -347,24 +347,23 @@ test "chroma_unpack_hex with conversion" {
 }
 
 test "C ABI header enum matches Zig CSpace" {
-    // These values must match the chroma_space_t enum order in chroma.h.
-    // If you add/reorder spaces in color.zig, update chroma.h to match.
-    try std.testing.expectEqual(@as(c_int, 0), @intFromEnum(CSpace.cie_xyz));
-    try std.testing.expectEqual(@as(c_int, 1), @intFromEnum(CSpace.cie_yxy));
-    try std.testing.expectEqual(@as(c_int, 2), @intFromEnum(CSpace.srgb));
-    try std.testing.expectEqual(@as(c_int, 3), @intFromEnum(CSpace.linear_srgb));
-    try std.testing.expectEqual(@as(c_int, 4), @intFromEnum(CSpace.display_p3));
-    try std.testing.expectEqual(@as(c_int, 5), @intFromEnum(CSpace.linear_display_p3));
-    try std.testing.expectEqual(@as(c_int, 6), @intFromEnum(CSpace.rec2020));
-    try std.testing.expectEqual(@as(c_int, 7), @intFromEnum(CSpace.rec2020scene));
-    try std.testing.expectEqual(@as(c_int, 8), @intFromEnum(CSpace.linear_rec2020));
-    try std.testing.expectEqual(@as(c_int, 9), @intFromEnum(CSpace.hsl));
-    try std.testing.expectEqual(@as(c_int, 10), @intFromEnum(CSpace.hsv));
-    try std.testing.expectEqual(@as(c_int, 11), @intFromEnum(CSpace.hsi));
-    try std.testing.expectEqual(@as(c_int, 12), @intFromEnum(CSpace.hwb));
-    try std.testing.expectEqual(@as(c_int, 13), @intFromEnum(CSpace.cmyk));
-    try std.testing.expectEqual(@as(c_int, 14), @intFromEnum(CSpace.cie_lab));
-    try std.testing.expectEqual(@as(c_int, 15), @intFromEnum(CSpace.cie_lch));
-    try std.testing.expectEqual(@as(c_int, 16), @intFromEnum(CSpace.oklab));
-    try std.testing.expectEqual(@as(c_int, 17), @intFromEnum(CSpace.oklch));
+    const c = @cImport(@cInclude("chroma.h"));
+    try std.testing.expectEqual(c.CHROMA_XYZ, @intFromEnum(CSpace.cie_xyz));
+    try std.testing.expectEqual(c.CHROMA_YXY, @intFromEnum(CSpace.cie_yxy));
+    try std.testing.expectEqual(c.CHROMA_SRGB, @intFromEnum(CSpace.srgb));
+    try std.testing.expectEqual(c.CHROMA_LINEAR_SRGB, @intFromEnum(CSpace.linear_srgb));
+    try std.testing.expectEqual(c.CHROMA_DISPLAY_P3, @intFromEnum(CSpace.display_p3));
+    try std.testing.expectEqual(c.CHROMA_LINEAR_DISPLAY_P3, @intFromEnum(CSpace.linear_display_p3));
+    try std.testing.expectEqual(c.CHROMA_REC2020, @intFromEnum(CSpace.rec2020));
+    try std.testing.expectEqual(c.CHROMA_REC2020_SCENE, @intFromEnum(CSpace.rec2020scene));
+    try std.testing.expectEqual(c.CHROMA_LINEAR_REC2020, @intFromEnum(CSpace.linear_rec2020));
+    try std.testing.expectEqual(c.CHROMA_HSL, @intFromEnum(CSpace.hsl));
+    try std.testing.expectEqual(c.CHROMA_HSV, @intFromEnum(CSpace.hsv));
+    try std.testing.expectEqual(c.CHROMA_HSI, @intFromEnum(CSpace.hsi));
+    try std.testing.expectEqual(c.CHROMA_HWB, @intFromEnum(CSpace.hwb));
+    try std.testing.expectEqual(c.CHROMA_CMYK, @intFromEnum(CSpace.cmyk));
+    try std.testing.expectEqual(c.CHROMA_LAB, @intFromEnum(CSpace.cie_lab));
+    try std.testing.expectEqual(c.CHROMA_LCH, @intFromEnum(CSpace.cie_lch));
+    try std.testing.expectEqual(c.CHROMA_OKLAB, @intFromEnum(CSpace.oklab));
+    try std.testing.expectEqual(c.CHROMA_OKLCH, @intFromEnum(CSpace.oklch));
 }
