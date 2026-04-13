@@ -12,7 +12,6 @@
 extern "C" {
 #endif
 
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -128,11 +127,11 @@ void chroma_unpack_srgb8(chroma_color_t c, uint8_t *r, uint8_t *g, uint8_t *b);
 
 /* Check if a hue value represents "no hue" (achromatic). */
 static inline int chroma_hue_is_null(float h) {
-    return isnan(h);
+    return __builtin_isnan(h);
 }
 
 /* The "no hue" sentinel value. */
-#define CHROMA_HUE_NONE NAN
+#define CHROMA_HUE_NONE __builtin_nanf("")
 
 #ifdef __cplusplus
 }
