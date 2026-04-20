@@ -1,6 +1,13 @@
 /*
- * libchroma - Color space conversion library (C ABI)
- * Null hues (achromatic colors) are represented as NaN.
+ * libchroma - Color space conversion library
+ * https://github.com/KieranCanter/libchroma
+ *
+ * Conventions:
+ *   - All channel values are float (f32). RGB spaces use [0,1] internally; use srgb8/hex helpers for 0-255 or packed.
+ *   - Achromatic colors (greys) have no meaningful hue. The hue field is set to NaN. Use chroma_hue_is_null() to test.
+ *   - Alpha is always [0,1] where 0 = transparent, 1 = opaque.
+ *   - Gamut mapping uses OKLCH chroma reduction per CSS Color Level 5.
+ *   - All conversions route through CIE XYZ (D65) as the interchange space.
  */
 
 #ifndef CHROMA_H
@@ -13,41 +20,155 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Types */
-
-/* Integer values must match color.zig color_spaces order. */
+/*
+ * Color spaces
+ * Enum values match the internal Zig `color_spaces` order. Do not reorder, this would be ABI breakage.
+ */
 typedef enum {
-    CHROMA_XYZ,
-    CHROMA_YXY,
-    CHROMA_SRGB,
-    CHROMA_LINEAR_SRGB,
-    CHROMA_DISPLAY_P3,
-    CHROMA_LINEAR_DISPLAY_P3,
-    CHROMA_REC2020,
-    CHROMA_REC2020_SCENE,
-    CHROMA_LINEAR_REC2020,
-    CHROMA_HSL,
-    CHROMA_HSV,
-    CHROMA_HSI,
-    CHROMA_HWB,
-    CHROMA_CMYK,
-    CHROMA_LAB,
-    CHROMA_LCH,
-    CHROMA_OKLAB,
-    CHROMA_OKLCH,
+    CHROMA_XYZ,               /* CIE XYZ (D65)                              */
+    CHROMA_YXY,               /* CIE Yxy                                    */
+    CHROMA_SRGB,              /* sRGB (gamma-encoded)                       */
+    CHROMA_LINEAR_SRGB,       /* Linear sRGB                                */
+    CHROMA_DISPLAY_P3,        /* Display P3 (gamma-encoded)                 */
+    CHROMA_LINEAR_DISPLAY_P3, /* Linear Display P3                          */
+    CHROMA_REC2020,           /* Rec. 2020 display-referred (Rec. 1886)     */
+    CHROMA_REC2020_SCENE,     /* Rec. 2020 scene-referred (Rec. 2020 OETF)  */
+    CHROMA_LINEAR_REC2020,    /* Linear Rec. 2020                           */
+    CHROMA_HSL,               /* HSL (hue, saturation, lightness)           */
+    CHROMA_HSV,               /* HSV (hue, saturation, value)               */
+    CHROMA_HSI,               /* HSI (hue, saturation, intensity)           */
+    CHROMA_HWB,               /* HWB (hue, whiteness, blackness)            */
+    CHROMA_CMYK,              /* CMYK (cyan, magenta, yellow, black)        */
+    CHROMA_LAB,               /* CIE L*a*b* (D65)                           */
+    CHROMA_LCH,               /* CIE LCH(ab) (D65)                          */
+    CHROMA_OKLAB,             /* OKLab                                      */
+    CHROMA_OKLCH,             /* OKLCH                                      */
 } chroma_space_t;
 
-typedef struct { float r, g, b; } chroma_rgb_t;
-typedef struct { float h, s, l; } chroma_hsl_t;
-typedef struct { float h, s, v; } chroma_hsv_t;
-typedef struct { float h, w, b; } chroma_hwb_t;
-typedef struct { float h, s, i; } chroma_hsi_t;
-typedef struct { float c, m, y, k; } chroma_cmyk_t;
-typedef struct { float x, y, z; } chroma_xyz_t;
-typedef struct { float luma, x, y; } chroma_yxy_t;
-typedef struct { float l, a, b; } chroma_lab_t;
-typedef struct { float l, c, h; } chroma_lch_t;
+/*
+ * Channel structs
+ * Each maps to one or more color spaces. Fields are f32. Hues are [0, 360) or NaN when achromatic.
+ */
 
+/*
+ * `r`: red in [0, 1]
+ * `g`: green in [0, 1]
+ * `b`: blue in [0, 1]
+ * Shared by all RGB spaces (sRGB, P3, Rec. 2020, etc.)
+ */
+typedef struct {
+    float r;
+    float g;
+    float b;
+} chroma_rgb_t;
+
+/*
+ * `h`: hue in [0, 360) or NaN
+ * `s`: saturation in [0, 1]
+ * `l`: lightness in [0, 1]
+ */
+typedef struct {
+    float h;
+    float s;
+    float l;
+} chroma_hsl_t;
+
+/*
+ * `h`: hue in [0, 360) or NaN
+ * `s`: saturation in [0, 1]
+ * `v`: value in [0, 1]
+ */
+typedef struct {
+    float h;
+    float s;
+    float v;
+} chroma_hsv_t;
+
+/*
+ * `h`: hue in [0, 360) or NaN
+ * `w`: whiteness in [0, 1]
+ * `b`: blackness in [0, 1]
+ */
+typedef struct {
+    float h;
+    float w;
+    float b;
+} chroma_hwb_t;
+
+/*
+ * `h`: hue in [0, 360) or NaN
+ * `s`: saturation in [0, 1]
+ * `i`: intensity in [0, 1]
+ */
+typedef struct {
+    float h;
+    float s;
+    float i;
+} chroma_hsi_t;
+
+/*
+ * `c`: cyan in [0, 1]
+ * `m`: magenta in [0, 1]
+ * `y`: yellow in [0, 1]
+ * `k`: black in [0, 1]
+ */
+typedef struct {
+    float c;
+    float m;
+    float y;
+    float k;
+} chroma_cmyk_t;
+
+/*
+ * `x`: mix of CIE RGB curves in [0, inf)
+ * `y`: luminance in [0, inf)
+ * `z`: quasi-blue in [0, inf)
+ */
+typedef struct {
+    float x;
+    float y;
+    float z;
+} chroma_xyz_t;
+
+/*
+ * `luma`: luminance in [0, 1]
+ * `x`: chromaticity-x in [0, 1]
+ * `y`: chromaticity-y in [0, 1]
+ */
+typedef struct {
+    float luma;
+    float x;
+    float y;
+} chroma_yxy_t;
+
+/*
+ * `l`: lightness
+ * `a`: green-red axis
+ * `b`: blue-yellow axis
+ * Shared by CIE L*a*b* and OKLab (different ranges).
+ */
+typedef struct {
+    float l;
+    float a;
+    float b;
+} chroma_lab_t;
+
+/*
+ * `l`: lightness
+ * `c`: chroma
+ * `h`: hue in [0, 360) or NaN
+ * Shared by CIE LCH and OKLCH (different ranges).
+ */
+typedef struct {
+    float l;
+    float c;
+    float h;
+} chroma_lch_t;
+
+/*
+ * Color data union
+ * Access the field matching the color's space tag. Reading the wrong field is undefined behavior.
+ */
 typedef union {
     chroma_xyz_t cie_xyz;
     chroma_yxy_t cie_yxy;
@@ -69,69 +190,95 @@ typedef union {
     chroma_lch_t oklch;
 } chroma_color_data_t;
 
+/* A color tagged union: space tag + channel data. */
 typedef struct {
     chroma_space_t space;
     chroma_color_data_t data;
 } chroma_color_t;
 
+/* A color with an alpha channel, `alpha` is [0, 1] (0 = transparent). */
 typedef struct {
     chroma_color_t color;
     float alpha;
 } chroma_alpha_color_t;
 
-/* API */
+/*
+ * Conversion
+ */
 
-/* Convert a color to another space. */
+/* Convert `src` to the given destination space `dst`. */
 chroma_color_t chroma_convert(chroma_color_t src, chroma_space_t dst);
 
-/* Check if a color is within the gamut of the given RGB space. Non-RGB always returns true. */
+/*
+ * Gamut
+ */
+
+/* Check whether `src` is within the gamut of the given space. Only meaningful for RGB spaces; non-RGB returns true. */
 bool chroma_is_in_gamut(chroma_color_t src, chroma_space_t gamut);
 
-/* Map a color into gamut via OKLCH chroma reduction (CSS Color Level 4). */
+/* Map `src` into gamut of `target` via OKLCH chroma reduction (CSS Color Level 4). `target` must be an RGB space. */
 chroma_color_t chroma_gamut_map(chroma_color_t src, chroma_space_t target);
 
-/* Construct a color from float values (3 or 4 depending on space). */
+/*
+ * Generic init / unpack
+ * `vals` must point to 3 floats for most spaces, or 4 for CMYK.
+ */
+
+/* Build a color from a space tag and float channel values. */
 chroma_color_t chroma_init(chroma_space_t space, const float *vals);
 
-/* Extract float values. Returns field count (3 or 4). */
-int chroma_unpack(chroma_color_t c, float *vals);
+/* Copy channel values out of a color. Returns the number of channels. */
+int chroma_unpack(chroma_color_t clr, float *vals);
 
-/* Construct an alpha color from float values and alpha. */
+/* Build an alpha color from a space tag, float channel values, and alpha. */
 chroma_alpha_color_t chroma_init_alpha(chroma_space_t space, const float *vals, float alpha);
 
-/* Extract float values and alpha. Returns field count. */
-int chroma_unpack_alpha(chroma_alpha_color_t c, float *vals, float *alpha);
+/* Copy channel values and alpha out of an alpha color. Returns channel count. */
+int chroma_unpack_alpha(chroma_alpha_color_t aclr, float *vals, float *alpha);
 
-/* Construct sRGB from a 24-bit hex value (0xRRGGBB). */
+/*
+ * Hex helpers (0xRRGGBB / 0xRRGGBBAA)
+ */
+
+/* Build an sRGB color from a 24-bit hex value. Most significant 8 bits are ignored. */
 chroma_color_t chroma_init_hex(uint32_t hex);
 
-/* Extract a 24-bit hex value (0xRRGGBB), converting to sRGB if needed. */
-uint32_t chroma_unpack_hex(chroma_color_t c);
+/* Convert any color to sRGB and return a 24-bit hex value (0x00RRGGBB). Most significant 8 bits are always 0. */
+uint32_t chroma_unpack_hex(chroma_color_t clr);
 
-/* Construct sRGB from 0-255 u8 values. */
-chroma_color_t chroma_init_srgb8(uint8_t r, uint8_t g, uint8_t b);
-
-/* Extract 0-255 u8 sRGB values, converting if needed. */
-void chroma_unpack_srgb8(chroma_color_t c, uint8_t *r, uint8_t *g, uint8_t *b);
-
-/* Construct sRGB+alpha from 0-255 u8 values. */
-chroma_alpha_color_t chroma_init_srgba8(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
-/* Extract 0-255 u8 sRGBA values, converting if needed. */
-void chroma_unpack_srgba8(chroma_alpha_color_t c, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *a);
-
-/* Construct sRGB+alpha from a 32-bit 0xRRGGBBAA value. */
+/* Build an sRGB+alpha color from a 32-bit 0xRRGGBBAA value. */
 chroma_alpha_color_t chroma_init_hexa(uint32_t rgba);
 
-/* Extract a 32-bit 0xRRGGBBAA value, converting to sRGB if needed. */
-uint32_t chroma_unpack_hexa(chroma_alpha_color_t c);
+/* Convert any alpha color to sRGB and return a 32-bit 0xRRGGBBAA value. */
+uint32_t chroma_unpack_hexa(chroma_alpha_color_t aclr);
 
-/* Check if a hue is null (achromatic). */
+/*
+ * 8-bit sRGB helpers
+ */
+
+/* Build an sRGB color from 0-255 channel values. */
+chroma_color_t chroma_init_srgb8(uint8_t r, uint8_t g, uint8_t b);
+
+/* Convert any color to sRGB and write 0-255 channel values. */
+void chroma_unpack_srgb8(chroma_color_t clr, uint8_t *r, uint8_t *g, uint8_t *b);
+
+/* Build an sRGB+alpha color from 0-255 channel values. */
+chroma_alpha_color_t chroma_init_srgba8(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
+/* Convert any alpha color to sRGB and write 0-255 channel values. */
+void chroma_unpack_srgba8(chroma_alpha_color_t aclr, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *a);
+
+/*
+ * Null hue utilities
+ * Achromatic colors (pure greys) have no hue. The hue field is `NaN`.
+ */
+
+/* Returns nonzero if `h` is a null hue (`NaN`). */
 static inline int chroma_hue_is_null(float h) {
     return __builtin_isnan(h);
 }
 
-/* Null hue sentinel. */
+/* Null hue sentinel value. Use when constructing achromatic colors manually. */
 #define CHROMA_HUE_NONE __builtin_nanf("")
 
 #ifdef __cplusplus
