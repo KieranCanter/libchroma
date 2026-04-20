@@ -1,19 +1,16 @@
 const std = @import("std");
 
-// C ABI exports (pull in so export fn symbols are included in the library)
+// C ABI exports
 comptime {
     _ = @import("c/chroma_c.zig");
 }
-
-// Namespaces
-// Access the full module: chroma.rgb, chroma.gamut, chroma.alpha, etc.
 
 pub const color = @import("color.zig");
 pub const alpha = @import("color/alpha.zig");
 pub const gamut = @import("gamut.zig");
 pub const testing = @import("testing.zig");
 
-// Convenience shortcuts for major types like Colors and Alpha
+// Convenience type re-exports
 
 // Runtime color type
 pub const Color = color.Color;
@@ -49,7 +46,6 @@ const validation = @import("validation.zig");
 pub const assertColorInterface = validation.assertColorInterface;
 
 // Universal conversion (comptime)
-
 pub fn convert(src: anytype, comptime Dest: type) Dest {
     const Src = @TypeOf(src);
     assertColorInterface(Src);

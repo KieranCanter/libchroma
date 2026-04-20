@@ -15,7 +15,7 @@ pub const ParseResult = struct {
     alpha: ?f32 = null,
 };
 
-/// Parse a color string and return an AlphaColor (alpha defaults to 1.0).
+/// Parse a color string into a Color with optional alpha.
 pub fn parse(input: []const u8) !ParseResult {
     const s = std.mem.trim(u8, input, " \t");
     if (isHexLike(s)) return parseHex(s);
@@ -102,9 +102,7 @@ fn nextFloat(it: anytype) ?f32 {
     return null;
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const testing = std.testing;
 
@@ -185,4 +183,13 @@ test "parse unknown space" {
 
 test "parse too few values" {
     try testing.expectError(ParseError.InvalidValues, parse("srgb(0.5, 0.3)"));
+}
+
+test "parse trims whitespace" {
+    const r = try parse("  #C86432  ");
+    try testing.expectEqual(.srgb, std.meta.activeTag(r.color));
+}
+
+test "parse missing closing paren" {
+    try testing.expectError(ParseError.InvalidFuncFormat, parse("srgb(0.5, 0.3, 0.1"));
 }

@@ -5,11 +5,7 @@ const color_formatter = @import("../../color_formatter.zig");
 const Oklab = @import("../lab/oklab.zig").Oklab;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// Type to hold an OKLCH value — the cylindrical form of OKLab.
-///
-/// l: perceived lightness in [0, 1]
-/// c: chroma in [0, ~0.4]
-/// h: hue angle in [0, 360) or null when chroma is 0 (achromatic)
+/// OKLCH color, the cylindrical form of OKLab. l in [0,1], c in [0,~0.4], h in [0,360) or null.
 pub fn Oklch(comptime T: type) type {
     assertFloatType(T);
 
@@ -56,9 +52,7 @@ pub fn Oklch(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");

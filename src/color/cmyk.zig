@@ -7,12 +7,7 @@ const Srgb = @import("rgb/srgb.zig").Srgb;
 const CieXyz = @import("xyz/cie_xyz.zig").CieXyz;
 const CmykError = error{OutOfRange};
 
-/// Type to hold a CMYK value.
-///
-/// c: cyan value in [0.0, 1.0]
-/// m: magenta value in [0.0, 1.0]
-/// y: yellow value in [0.0, 1.0]
-/// k: black value in [0.0, 1.0]
+/// CMYK color: c, m, y, k all in [0, 1].
 pub fn Cmyk(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -98,26 +93,9 @@ pub fn Cmyk(comptime T: type) type {
     };
 }
 
-// ///////////////////////////////////////////////////////////////////////// //
-// ///////////////////////////////   TESTS   /////////////////////////////// //
-// ///////////////////////////////////////////////////////////////////////// //
-
-// Tolerances are used for some comparisons to allow inexact approximation checks:
-// * For f32, when truncated to 3 decimal places, compared values should differ by no more than
-// 0.001.
-// * For f64, when truncated to 6 decimal places, compared values should differ by no more
-// than 0.000001.
-//
-// To prevent having to manually truncate all values to the specified number of decimal places,
-// 0.002 and 0.000002 are used as tolerances. For example, if we have an expected value of 0.392156
-// and an actual value of 0.39215732995152763, this would technically fail with a 0.000001 tolerance
-// because at the sixth decimal place, there is about a 0.0000013 difference, but if we truncated
-// the actual value to six decimal places, it would be 0.392157, which only has a 0.000001
-// difference with our expected value.
-
-// //////////////////////// //
-// ////////  Cmyk  //////// //
-// //////////////////////// //
+// Tests
+// Tolerances: 0.002 (f32) / 0.000002 (f64) to account for rounding without
+// manually truncating decimal places.
 
 test "Cmyk formatting" {
     const alloc = std.testing.allocator;

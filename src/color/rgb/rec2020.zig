@@ -26,13 +26,7 @@ const XYZ_TO_REC2020: [3][3]f32 = .{
     .{ 0.017639857445311, -0.042770613257809, 0.942103121235474 },
 };
 
-/// Type to hold a non-linear Rec. 2020 value. This is a display-referred variant that uses the EOTF
-/// specified in the Rec. 1886 spec (2.4 gamma). Rec. 2020 covers about 75.8% of the CIE 1931
-/// chromaticity gamut.
-///
-/// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
+/// Non-linear Rec. 2020 color (display-referred, Rec. 1886 EOTF). Covers ~75.8% of CIE 1931.
 pub fn Rec2020(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -119,12 +113,7 @@ pub fn Rec2020(comptime T: type) type {
     };
 }
 
-/// Type to hold a non-linear Rec. 2020 value. This is a scene-referred variant that uses the OETF
-/// specified in the Rec. 2020 spec.
-///
-/// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
+/// Non-linear Rec. 2020 color (scene-referred, Rec. 2020 OETF).
 pub fn Rec2020Scene(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -225,11 +214,7 @@ pub fn Rec2020Scene(comptime T: type) type {
     };
 }
 
-/// Type to hold a linearized Rec. 2020 value.
-///
-/// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
+/// Linearized Rec. 2020 color.
 pub fn LinearRec2020(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -323,9 +308,7 @@ pub fn LinearRec2020(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const Srgb = @import("srgb.zig").Srgb;
 

@@ -102,7 +102,7 @@ pub fn toCmyk(rgb: anytype) Cmyk(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const b = rgbCast(F, rgb.b);
 
     const k = 1.0 - @max(r, g, b);
-    if (k == 1.0) { // Avoid division by 0
+    if (k == 1.0) {
         return Cmyk(F).init(0, 0, 0, k);
     }
     const c = (1.0 - r - k) / (1.0 - k);
@@ -125,16 +125,13 @@ pub fn toHsi(rgb: anytype) Hsi(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const xmin = @min(r, g, b);
     const chroma = xmax - xmin;
 
-    // Intensity
     const i = (r + g + b) / 3.0;
 
-    // Saturation
     var s: F = 0.0;
     if (i != 0) {
         s = 1.0 - (xmin / i);
     }
 
-    // Hue
     var h: ?F = null;
     if (chroma != 0) {
         h = computeHue(F, r, g, b, xmax, xmin);
@@ -156,16 +153,13 @@ pub fn toHsl(rgb: anytype) Hsl(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const xmin = @min(r, g, b);
     const chroma = xmax - xmin;
 
-    // Lightness
     const l = (xmax + xmin) / 2.0;
 
-    // Hue
     var h: ?F = null;
     if (chroma != 0) {
         h = computeHue(F, r, g, b, xmax, xmin);
     }
 
-    // Saturation
     var s: F = 0.0;
     if (l != 0 and l != 1) {
         s = chroma / (1.0 - @abs(2.0 * l - 1.0));
@@ -183,18 +177,15 @@ pub fn toHsv(rgb: anytype) Hsv(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const g = rgbCast(F, rgb.g);
     const b = rgbCast(F, rgb.b);
 
-    // Value
     const xmax = @max(r, g, b);
     const xmin = @min(r, g, b);
     const chroma = xmax - xmin;
 
-    // Hue
     var h: ?F = null;
     if (chroma != 0) {
         h = computeHue(F, r, g, b, xmax, xmin);
     }
 
-    // Saturation
     var s: F = 0.0;
     if (xmax != 0) {
         s = chroma / xmax;
@@ -215,14 +206,10 @@ pub fn toHwb(rgb: anytype) Hwb(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const xmax = @max(r, g, b);
     const xmin = @min(r, g, b);
 
-    // Whiteness
     const white = xmin;
-
-    // Blackness
     const black = 1.0 - xmax;
 
-    // Hue
-    const epsilon: F = 1 / 100000; // for floating point error
+    const epsilon: F = 1 / 100000;
     var h: ?F = null;
     if (white + black < 1 - epsilon) {
         h = computeHue(F, r, g, b, xmax, xmin);
@@ -231,45 +218,9 @@ pub fn toHwb(rgb: anytype) Hwb(rgbToFloatType(@TypeOf(rgb).Backing)) {
     return Hwb(F).init(h, white, black);
 }
 
-/// Typically, the hue of HSI, HSL, HSV, and HWB is calulcated via an trigonemetric algorithm as
-/// such:
-///
-/// ```zig
-/// const numerator = 0.5 * ((self.r - self.g) + (self.r - self.b));
-/// const denominator = std.math.sqrt((self.r - self.g) * (self.r - self.g) + (self.r - self.b) * (self.g - self.b));
-/// var h = std.math.acos(numerator / denominator) * 180 / std.math.pi;
-/// if (self.b > self.g) {
-///     h = 360.0 - h;
-/// }
-/// ```
-///
-/// or in plaintext:
-///
-/// ```
-/// N = 0.5[(R - G) + (R - B)] = R - ((G + B) / 2)
-/// D = sqrt(pow(R - G, 2) + (R - B) * (G - B))
-/// Hue = acos(N / D)
-/// ```
-///
-/// To avoid expensive functions like acos() and sqrt(), we can use the max RGB channel and min
-/// RGB channel to calculate the hue instead. When we consider that each 60° sector will have a
-/// most dominant channel and least dominant channel, the above cosine ratio can be simplified
-/// to a linear function, where `C = max(R, G, B) - min(R, G, B)` represents the chroma and the
-/// subscript to `Hue` represents the most dominant channel.
-///
-/// ```
-/// Hue_R = 60 * (((G - B) / C) % 6)
-/// Hue_G = 60 * ((B - R) / C) + 2)
-/// Hue_B = 60 * ((R - B) / C) + 4)
-/// ```
-///
-/// Note:
-/// * Each one of ((R, G, B) - (R, G, B) / C) will be in the range [-1, 1]
-/// * `Hue_R` represents the 300°-60° sector, so it has no offset, but must be guaranteed to be
-/// within positive bounds, thus the modulo is used to ensure this (alternatively you could
-/// conditionally check for negativity and add 360°)
-/// * `Hue_G` represents the 60°-180° sector, so it is offset by 2 (120°)
-/// * `Hue_B` represents the 180°-300° sector, so it is offset by 4 (240°)
+/// Compute hue from RGB using the max-channel linear method instead of the
+/// expensive acos/sqrt trigonometric approach. Each 60° sector has a dominant
+/// channel, so the cosine ratio simplifies to a linear function of chroma.
 fn computeHue(comptime F: type, r: F, g: F, b: F, xmax: F, xmin: F) F {
     const chroma = xmax - xmin;
     var h: F = 0;
@@ -362,13 +313,9 @@ pub fn clampRgb(comptime RgbType: type, rgb_color: anytype) RgbType {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
-// ==========================
 // Srgb hex methods
-// ==========================
 
 test "Srgb initFromHexString" {
     var c = try Srgb(u8).initFromHexString("C86432");

@@ -9,11 +9,7 @@ const Hwb = @import("hwb.zig").Hwb;
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// Type to hold an HSV value.
-///
-/// h: hue value in [0.0, 360.0] or null when saturation is 0
-/// s: saturation value in [0.0, 1.0]
-/// v: value value in [0.0, 1.0]
+/// HSV color: h in [0,360] or null, s and v in [0,1].
 pub fn Hsv(comptime T: type) type {
     assertFloatType(T);
 
@@ -73,16 +69,12 @@ pub fn Hsv(comptime T: type) type {
         // Formula for HSV -> HSL conversion:
         // https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_HSL
         pub fn toHsl(self: Self) Hsl(T) {
-            // Lightness
             const l = self.v * (1.0 - (self.s / 2.0));
 
-            // Saturation
             var s: f32 = 0.0;
             if (l != 0.0 and l != 1.0) {
                 s = (self.v - l) / @min(l, 1.0 - l);
             }
-
-            // Hue remains same
 
             return Hsl(T).init(
                 self.h,
@@ -101,9 +93,7 @@ pub fn Hsv(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const tol = 0.002;
 

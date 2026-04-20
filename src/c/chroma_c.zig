@@ -1,5 +1,4 @@
-// C ABI bridge for libchroma.
-// Maps between C-compatible extern types and internal Zig color types.
+// C ABI bridge. Maps between extern C types and internal Zig color types.
 
 const std = @import("std");
 const lib = @import("../lib.zig");
@@ -15,10 +14,7 @@ fn hueFromC(h: f32) ?f32 {
     return if (std.math.isNan(h)) null else h;
 }
 
-// C ABI types — Space generated from color.Space
-
-/// chroma_space_t
-/// Models color.Space in color.zig.
+// C-side space enum, generated from color.Space
 const internal_fields = @typeInfo(color.Space).@"enum".fields;
 const n_spaces = internal_fields.len;
 
@@ -39,8 +35,7 @@ fn toInternalSpace(s: CSpace) color.Space {
     return @enumFromInt(@intFromEnum(s));
 }
 
-/// chroma_<color-type>_t types
-/// Models color_spaces in color.zig.
+// C-side color data structs
 const CRgb = extern struct { r: f32, g: f32, b: f32 };
 const CHsl = extern struct { h: f32, s: f32, l: f32 };
 const CHsv = extern struct { h: f32, s: f32, v: f32 };
@@ -52,8 +47,6 @@ const CYxy = extern struct { luma: f32, x: f32, y: f32 };
 const CLab = extern struct { l: f32, a: f32, b: f32 };
 const CLch = extern struct { l: f32, c: f32, h: f32 };
 
-/// Maps each color space to its C-compatible struct type.
-/// Models color.Color
 fn spaceToCColorData(comptime space: color.Space) type {
     return switch (space) {
         .srgb, .linear_srgb, .display_p3, .linear_display_p3, .rec2020, .rec2020scene, .linear_rec2020 => CRgb,
@@ -80,23 +73,19 @@ const ccolordata_types: [n_spaces]type = blk: {
 
 const no_attrs: [n_spaces]std.builtin.Type.UnionField.Attributes = @splat(.{});
 
-/// chroma_color_data_t
 const CColorData = @Union(.@"extern", null, &cspace_names, &ccolordata_types, &no_attrs);
 
-/// chroma_color_t
 pub const CColor = extern struct {
     space: CSpace,
     data: CColorData,
 };
 
-/// chroma_alpha_color_t
 pub const CAlphaColor = extern struct {
     color: CColor,
     alpha: f32,
 };
 
-// Unpack: C Color -> internal Color
-
+// C Color -> internal Color
 fn unpack(c: CColor) color.Color {
     return switch (c.space) {
         .srgb => .{ .srgb = .{ .r = c.data.srgb.r, .g = c.data.srgb.g, .b = c.data.srgb.b } },
@@ -120,8 +109,7 @@ fn unpack(c: CColor) color.Color {
     };
 }
 
-// Pack: internal Color -> C Color
-
+// Internal Color -> C Color
 fn pack(ic: color.Color, dst: CSpace) CColor {
     return .{ .space = dst, .data = switch (ic) {
         .srgb => |v| .{ .srgb = .{ .r = v.r, .g = v.g, .b = v.b } },
@@ -145,7 +133,7 @@ fn pack(ic: color.Color, dst: CSpace) CColor {
     } };
 }
 
-// Exported C API
+// Exported functions
 
 export fn chroma_convert(src: CColor, dst_space: CSpace) CColor {
     const internal = unpack(src);
@@ -239,9 +227,7 @@ export fn chroma_unpack_hex(c: CColor) u32 {
     return lib.Srgb(f32).init(srgb.r, srgb.g, srgb.b).toHex();
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 test "chroma_convert srgb -> hsl" {
     const src = CColor{ .space = .srgb, .data = .{ .srgb = .{ .r = 0.8, .g = 0.4, .b = 0.2 } } };
@@ -346,8 +332,37 @@ test "chroma_unpack_hex with conversion" {
     try std.testing.expectEqual(@as(u32, 0xC86432), hex);
 }
 
+test "chroma_is_in_gamut srgb color in srgb" {
+    const c = chroma_init(.srgb, &[_]f32{ 0.5, 0.3, 0.1 });
+    try std.testing.expect(chroma_is_in_gamut(c, .srgb));
+}
+
+test "chroma_is_in_gamut out-of-gamut color" {
+    const c = chroma_init(.srgb, &[_]f32{ 1.5, 0.3, 0.1 });
+    try std.testing.expect(!chroma_is_in_gamut(c, .srgb));
+}
+
+test "chroma_gamut_map clamps to gamut" {
+    const c = chroma_init(.srgb, &[_]f32{ 1.5, 0.3, -0.2 });
+    const mapped = chroma_gamut_map(c, .srgb);
+    var vals: [4]f32 = undefined;
+    _ = chroma_unpack(mapped, &vals);
+    try std.testing.expect(vals[0] >= 0.0 and vals[0] <= 1.0);
+    try std.testing.expect(vals[2] >= 0.0 and vals[2] <= 1.0);
+}
+
+test "NaN hue round-trip through C ABI" {
+    // Grey has no hue, should come back as NaN
+    const grey = chroma_init(.srgb, &[_]f32{ 0.5, 0.5, 0.5 });
+    const hsl = chroma_convert(grey, .hsl);
+    try std.testing.expect(std.math.isNan(hsl.data.hsl.h));
+    // Convert back, should still work
+    const back = chroma_convert(hsl, .srgb);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), back.data.srgb.r, 0.002);
+}
+
 test "C ABI header enum matches Zig CSpace" {
-    const c = @cImport(@cInclude("chroma.h"));
+    const c = @import("chroma_h");
     try std.testing.expectEqual(c.CHROMA_XYZ, @intFromEnum(CSpace.cie_xyz));
     try std.testing.expectEqual(c.CHROMA_YXY, @intFromEnum(CSpace.cie_yxy));
     try std.testing.expectEqual(c.CHROMA_SRGB, @intFromEnum(CSpace.srgb));

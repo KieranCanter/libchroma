@@ -1,8 +1,6 @@
 /*
- * libchroma - Color space conversion library
- * C ABI header
- *
- * Null hue values (achromatic colors) are represented as NaN.
+ * libchroma - Color space conversion library (C ABI)
+ * Null hues (achromatic colors) are represented as NaN.
  */
 
 #ifndef CHROMA_H
@@ -15,11 +13,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-/* ------------------------------------------------------------------ */
-/* Types                                                               */
-/* ------------------------------------------------------------------ */
+/* Types */
 
-/* Color space enum. Integer values must match color.zig color_spaces order. */
+/* Integer values must match color.zig color_spaces order. */
 typedef enum {
     CHROMA_XYZ,
     CHROMA_YXY,
@@ -83,54 +79,47 @@ typedef struct {
     float alpha;
 } chroma_alpha_color_t;
 
-/* ------------------------------------------------------------------ */
-/* API                                                                 */
-/* ------------------------------------------------------------------ */
+/* API */
 
-/* Convert a color from one space to another. */
+/* Convert a color to another space. */
 chroma_color_t chroma_convert(chroma_color_t src, chroma_space_t dst);
 
-/* Check if a color is within the gamut of the given RGB color space.
- * Non-RGB spaces always return true (they have no gamut limits). */
+/* Check if a color is within the gamut of the given RGB space. Non-RGB always returns true. */
 bool chroma_is_in_gamut(chroma_color_t src, chroma_space_t gamut);
 
-/* Map a color into the gamut of a target RGB space using perceptual
- * OKLCH chroma reduction (CSS Color Level 4 algorithm).
- * Non-RGB targets fall back to a simple conversion. */
+/* Map a color into gamut via OKLCH chroma reduction (CSS Color Level 4). */
 chroma_color_t chroma_gamut_map(chroma_color_t src, chroma_space_t target);
 
-/* Construct a color from an array of float values (3 or 4 depending on space). */
+/* Construct a color from float values (3 or 4 depending on space). */
 chroma_color_t chroma_init(chroma_space_t space, const float *vals);
 
-/* Extract float values from a color. Returns field count (3 or 4). */
+/* Extract float values. Returns field count (3 or 4). */
 int chroma_unpack(chroma_color_t c, float *vals);
 
 /* Construct an alpha color from float values and alpha. */
 chroma_alpha_color_t chroma_init_alpha(chroma_space_t space, const float *vals, float alpha);
 
-/* Extract float values and alpha from an alpha color. Returns field count. */
+/* Extract float values and alpha. Returns field count. */
 int chroma_unpack_alpha(chroma_alpha_color_t c, float *vals, float *alpha);
 
-/* Convenience: construct an sRGB color from a 24-bit hex value (0xRRGGBB). */
+/* Construct sRGB from a 24-bit hex value (0xRRGGBB). */
 chroma_color_t chroma_init_hex(uint32_t hex);
 
-/* Convenience: extract a 24-bit hex value (0xRRGGBB) from any color.
- * Converts to sRGB first if needed. */
+/* Extract a 24-bit hex value (0xRRGGBB), converting to sRGB if needed. */
 uint32_t chroma_unpack_hex(chroma_color_t c);
 
-/* Convenience: construct an sRGB color from 0-255 u8 values. */
+/* Construct sRGB from 0-255 u8 values. */
 chroma_color_t chroma_init_srgb8(uint8_t r, uint8_t g, uint8_t b);
 
-/* Convenience: extract 0-255 u8 sRGB values from any color.
- * Converts to sRGB first if needed. */
+/* Extract 0-255 u8 sRGB values, converting if needed. */
 void chroma_unpack_srgb8(chroma_color_t c, uint8_t *r, uint8_t *g, uint8_t *b);
 
-/* Check if a hue value represents "no hue" (achromatic). */
+/* Check if a hue is null (achromatic). */
 static inline int chroma_hue_is_null(float h) {
     return __builtin_isnan(h);
 }
 
-/* The "no hue" sentinel value. */
+/* Null hue sentinel. */
 #define CHROMA_HUE_NONE __builtin_nanf("")
 
 #ifdef __cplusplus

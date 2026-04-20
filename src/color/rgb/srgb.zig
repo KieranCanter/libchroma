@@ -27,14 +27,8 @@ const XYZ_TO_SRGB: [3][3]f32 = .{
     .{ 0.05563007969699366, -0.20397695888897652, 1.0569715142428786 },
 };
 
-/// Type to hold a non-linear sRGB value. If you're looking for just normal "RGB," this is probably
-/// the type you're looking for. While a common standard for digital displays, sRGB only covers
-/// about 35.9% of the CIE 1931 chromaticity gamut, while newer RGB color space specifications like
-/// Display-P3 and Rec. 2020 offer wider gamut ranges.
-///
-/// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
+/// Non-linear sRGB color. The standard RGB for digital displays (~35.9% of CIE 1931).
+/// For wider gamuts, see DisplayP3 or Rec2020.
 pub fn Srgb(comptime T: type) type {
     validation.assertRgbType(T);
 
@@ -51,7 +45,7 @@ pub fn Srgb(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        /// Initialize from a 24-bit hex value (0xRRGGBB).
+        /// Init from a 24-bit hex value (0xRRGGBB).
         pub fn initFromHex(hex: u24) Self {
             const r: u8 = @intCast(hex >> 16 & 0xFF);
             const g: u8 = @intCast(hex >> 8 & 0xFF);
@@ -64,7 +58,7 @@ pub fn Srgb(comptime T: type) type {
             );
         }
 
-        /// Initialize from a hex string in "RRGGBB" or "#RRGGBB" format.
+        /// Init from a hex string ("RRGGBB" or "#RRGGBB").
         pub fn initFromHexString(hex_str: []const u8) rgb.RgbError!Self {
             return initFromHex(try rgb.parseHexString(hex_str));
         }
@@ -97,7 +91,7 @@ pub fn Srgb(comptime T: type) type {
         pub fn fromCieXyz(xyz: anytype) Self {
             const srgb_f = LinearSrgb(F).fromCieXyz(xyz).toSrgb();
             if (T == F) return srgb_f;
-            // T is u8, F is f32 — convert float sRGB to u8
+            // T is u8, F is f32, convert float sRGB to u8
             return Self.init(
                 rgb.fromFloat(T, srgb_f.r),
                 rgb.fromFloat(T, srgb_f.g),
@@ -159,11 +153,7 @@ pub fn Srgb(comptime T: type) type {
     };
 }
 
-/// Type to hold a linearized sRGB value.
-///
-/// r: red value in [0.0, 1.0]
-/// g: green value in [0.0, 1.0]
-/// b: blue value in [0.0, 1.0]
+/// Linearized sRGB color.
 pub fn LinearSrgb(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -231,14 +221,12 @@ pub fn LinearSrgb(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const tol32 = 0.002;
 const tol64 = 0.000002;
 
-// --- Srgb gamma <-> linear ---
+// Gamma <-> linear
 
 test "Srgb(f32) <-> LinearSrgb round-trip" {
     const original = Srgb(f32).init(0.8, 0.4, 0.2);
@@ -266,7 +254,7 @@ test "Srgb gamma edge cases" {
     try chroma_testing.expectColorsApproxEqAbs(LinearSrgb(f32).init(0.00232, 0.00232, 0.00232), low, tol32);
 }
 
-// --- Srgb <-> XYZ ---
+// Srgb <-> XYZ
 
 test "Srgb(f32) <-> XYZ round-trip" {
     const original = Srgb(f32).init(0.8, 0.4, 0.2);
@@ -293,7 +281,7 @@ test "Srgb(f32) toCieXyz known values" {
     try std.testing.expectEqual(CieXyz(f32).init(0, 0, 0), Srgb(f32).init(0, 0, 0).toCieXyz());
 }
 
-// --- Srgb → cylindrical/subtractive shortcuts ---
+// Srgb -> cylindrical/subtractive
 
 test "Srgb(f32) toHsl" {
     // Chromatic
@@ -349,14 +337,14 @@ test "Srgb(f32) toCmyk" {
     try std.testing.expectEqual(Cmyk(f32).init(0, 0, 0, 0), Srgb(f32).init(1, 1, 1).toCmyk());
 }
 
-// --- Srgb u8 implicit cast ---
+// Srgb u8
 
 test "Srgb(u8) toCieXyz produces f32" {
     const xyz = Srgb(u8).init(200, 100, 50).toCieXyz();
     try chroma_testing.expectColorsApproxEqAbs(CieXyz(f32).init(0.289, 0.216, 0.056), xyz, tol32);
 }
 
-// --- LinearSrgb ---
+// LinearSrgb
 
 test "LinearSrgb(f32) <-> XYZ round-trip" {
     const original = LinearSrgb(f32).init(0.604, 0.133, 0.033);

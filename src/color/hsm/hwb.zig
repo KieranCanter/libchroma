@@ -8,11 +8,7 @@ const Hsv = @import("hsv.zig").Hsv;
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// Type to hold an HWB value.
-///
-/// h: hue value in [0.0, 360.0] or null when white + black >= 1
-/// w: whiteness value in [0.0, 1.0]
-/// b: blackness value in [0.0, 1.0]
+/// HWB color: h in [0,360] or null, w and b in [0,1].
 pub fn Hwb(comptime T: type) type {
     assertFloatType(T);
 
@@ -58,7 +54,7 @@ pub fn Hwb(comptime T: type) type {
             const sector: u8 = @intFromFloat(@floor(hprime));
             var f = hprime - @floor(hprime);
 
-            if (sector & 1 != 0) { // sector is odd
+            if (sector & 1 != 0) {
                 f = 1 - f;
             }
 
@@ -85,9 +81,7 @@ pub fn Hwb(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const tol = 0.002;
 

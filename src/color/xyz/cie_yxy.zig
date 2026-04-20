@@ -7,11 +7,7 @@ const color_formatter = @import("../../color_formatter.zig");
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("cie_xyz.zig").CieXyz;
 
-/// Type to hold a Yxy value.
-///
-/// luma: luma value in [0.0, 1.0]
-/// x: chroma-x value in [0.0, 1.0]
-/// y: chroma-y value in [0.0, 1.0]
+/// CIE Yxy color: luma in [0,1], x and y chromaticity in [0,1].
 pub fn CieYxy(comptime T: type) type {
     assertFloatType(T);
 
@@ -42,12 +38,8 @@ pub fn CieYxy(comptime T: type) type {
                 return CieXyz(T).init(0, 0, 0);
             }
 
-            // X
             const x = (self.x * self.luma) / self.y;
 
-            // Y remains the same as luma
-
-            // Z
             const z = ((1.0 - self.x - self.y) * self.luma) / self.y;
 
             return CieXyz(T).init(x, self.luma, z);
@@ -62,12 +54,7 @@ pub fn CieYxy(comptime T: type) type {
                 return CieYxy(T).init(0.0, 0.0, 0.0);
             }
 
-            // Y (luma) remains the same as y
-
-            // x
             const x = xyz.x / sum;
-
-            // y
             const y = xyz.y / sum;
 
             return CieYxy(T).init(xyz.y, x, y);
@@ -79,9 +66,7 @@ pub fn CieYxy(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const tol = 0.002;
 

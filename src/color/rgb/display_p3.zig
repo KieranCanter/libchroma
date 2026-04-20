@@ -26,14 +26,7 @@ const XYZ_TO_P3: [3][3]f32 = .{
     .{ 0.03584583024378447, -0.07617238926804182, 0.9568845240076872 },
 };
 
-/// Type to hold a non-linear Display-P3 value. A variant of DCI-P3 (which was originally developed
-/// by Digital Cinema Intiatives, LLC for theatrical digital motion picture distribution),
-/// Display-P3 was developed by Apple for wide-gamut displays. It covers about 53.6% of the CIE 1931
-/// chromaticity gamut.
-///
-/// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
+/// Non-linear Display-P3 color. Apple's wide-gamut variant of DCI-P3, covering ~53.6% of CIE 1931.
 pub fn DisplayP3(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -124,11 +117,7 @@ pub fn DisplayP3(comptime T: type) type {
     };
 }
 
-/// Type to hold a linearized Display-P3 value.
-///
-/// r: red value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// g: green value in [0.0, 1.0] (float) or [0, 255] (u8)
-/// b: blue value in [0.0, 1.0] (float) or [0, 255] (u8)
+/// Linearized Display-P3 color.
 pub fn LinearDisplayP3(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -199,9 +188,7 @@ pub fn LinearDisplayP3(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const Srgb = @import("srgb.zig").Srgb;
 

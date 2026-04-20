@@ -34,8 +34,7 @@ pub const LinearRec2020 = rgb.LinearRec2020;
 
 // Color union (runtime)
 
-/// Single source of truth for all color space constructors.
-/// Space, Color, and AlphaColor are all generated from this list.
+/// All supported color spaces. Space, Color, and AlphaColor are generated from this.
 const color_spaces = .{
     CieXyz,
     CieYxy,
@@ -59,32 +58,27 @@ const color_spaces = .{
 
 const n_spaces = color_spaces.len;
 
-// Build field names from color spaces array above to use for enum and union types (convert from PascalCase to
-// snake_case).
+// PascalCase -> snake_case field names for enum/union generation.
 const field_names: [n_spaces][]const u8 = blk: {
-    // Raise the comptime branch limit (default 1000) since generating snake_case names for all color spaces requires
-    // many evaluations.
+    // Need extra quota for comptime snake_case conversion across all spaces.
     @setEvalBranchQuota(10_000);
     var result: [n_spaces][]const u8 = undefined;
     for (0..n_spaces) |i| result[i] = std.fmt.comptimePrint("{s}", .{toSnakeCase(typeName(color_spaces[i]))});
     break :blk result;
 };
 
-// Build the tag values for the enum as simple u8s from 0..n-1.
 const tag_values: [n_spaces]u8 = blk: {
     var result: [n_spaces]u8 = undefined;
     for (0..n_spaces) |i| result[i] = i;
     break :blk result;
 };
 
-// Build the union types per tag based on the color spaces array defined above.
 const field_types: [n_spaces]type = blk: {
     var result: [n_spaces]type = undefined;
     for (0..n_spaces) |i| result[i] = color_spaces[i](f32);
     break :blk result;
 };
 
-// Empty array needed to represent no attributes for union.
 const no_attrs: [n_spaces]std.builtin.Type.UnionField.Attributes = @splat(.{});
 
 pub const Space = @Enum(u8, .exhaustive, &field_names, &tag_values);
@@ -94,7 +88,7 @@ pub const AlphaColor = struct {
     a: f32 = 1.0,
 };
 
-// Color functions — accept Color or AlphaColor
+// Conversion functions for Color and AlphaColor
 
 pub fn convert(src: anytype, dest: Space) @TypeOf(src) {
     return switch (@TypeOf(src)) {
@@ -159,7 +153,7 @@ pub fn format(src: anytype, writer: *std.Io.Writer) std.Io.Writer.Error!void {
     }
 }
 
-// Comptime helpers
+// Comptime helpers for type name extraction
 
 fn typeName(comptime constructor: anytype) []const u8 {
     const full = @typeName(constructor(f32));
@@ -218,4 +212,47 @@ test "AlphaColor.convert preserves alpha" {
 test "Color has all color spaces" {
     try std.testing.expectEqual(n_spaces, @typeInfo(Color).@"union".fields.len);
     try std.testing.expectEqual(n_spaces, @typeInfo(Space).@"enum".fields.len);
+}
+
+test "initFromSlice valid 3-component" {
+    const c = try initFromSlice(.srgb, &.{ 0.5, 0.3, 0.1 });
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), c.srgb.r, 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.3), c.srgb.g, 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.1), c.srgb.b, 0.001);
+}
+
+test "initFromSlice valid 4-component (cmyk)" {
+    const c = try initFromSlice(.cmyk, &.{ 0.1, 0.2, 0.3, 0.4 });
+    try std.testing.expectApproxEqAbs(@as(f32, 0.4), c.cmyk.k, 0.001);
+}
+
+test "initFromSlice wrong count returns error" {
+    try std.testing.expectError(InitError.InvalidValueCount, initFromSlice(.srgb, &.{ 0.5, 0.3 }));
+    try std.testing.expectError(InitError.InvalidValueCount, initFromSlice(.srgb, &.{ 0.5, 0.3, 0.1, 0.9 }));
+}
+
+test "toCieXyz and fromCieXyz round-trip" {
+    const original = Color{ .srgb = Srgb(f32).init(0.8, 0.4, 0.2) };
+    const xyz_val = toCieXyz(original);
+    const back = fromCieXyz(xyz_val, .srgb);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.8), back.srgb.r, 0.002);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.4), back.srgb.g, 0.002);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.2), back.srgb.b, 0.002);
+}
+
+test "format Color" {
+    var buf: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&buf);
+    const c = Color{ .srgb = Srgb(f32).init(0.5, 0.3, 0.1) };
+    try format(c, &w);
+    try std.testing.expect(w.end > 0);
+}
+
+test "format AlphaColor includes alpha" {
+    var buf: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&buf);
+    const ac = withAlpha(.{ .srgb = Srgb(f32).init(0.5, 0.3, 0.1) }, 0.75);
+    try format(ac, &w);
+    const out = buf[0..w.end];
+    try std.testing.expect(std.mem.indexOf(u8, out, "0.75") != null);
 }

@@ -1,5 +1,4 @@
-// CSS gamut mapping via OKLCH chroma reduction with local MINDE (binary search).
-// Reference: CSS Color Level 5
+// Gamut mapping via OKLCH chroma reduction (CSS Color Level 5).
 // https://www.w3.org/TR/css-color-5/
 
 const std = @import("std");
@@ -18,8 +17,7 @@ fn deltaEOK(comptime T: type, a: Oklab(T), b: Oklab(T)) T {
     return @sqrt(dl * dl + da * da + db * db);
 }
 
-/// Map any color into the gamut of a destination RGB type using OKLCH chroma reduction.
-/// Dest must be an RGB type with isInGamut() and clamp().
+/// Map any color into the gamut of Dest using OKLCH chroma reduction.
 pub fn gamutMap(src: anytype, comptime Dest: type) Dest {
     const T = Dest.Backing;
     const jnd: T = JND;
@@ -67,9 +65,7 @@ pub fn gamutMap(src: anytype, comptime Dest: type) Dest {
     return lib.convert(current, Dest).clamp();
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const std_testing = std.testing;
 const Srgb = @import("color/rgb/srgb.zig").Srgb;
@@ -100,7 +96,7 @@ test "gamutMap preserves in-gamut colors" {
 test "gamutMap white and black" {
     const tol2: f32 = 0.002;
 
-    // Very high lightness, high chroma — should map to white
+    // Very high lightness, high chroma, should map to white
     const white = gamutMap(Srgb(f32).init(1, 1, 1), Srgb(f32));
     try std_testing.expectApproxEqAbs(@as(f32, 1), white.r, tol2);
     try std_testing.expectApproxEqAbs(@as(f32, 1), white.g, tol2);
@@ -136,4 +132,15 @@ test "isInGamut detects out-of-range" {
     try std_testing.expect(!Srgb(f32).init(-0.1, 0.5, 0.5).isInGamut());
     try std_testing.expect(!Srgb(f32).init(0.5, 1.1, 0.5).isInGamut());
     try std_testing.expect(Srgb(f32).init(0, 0.5, 1).isInGamut());
+}
+
+test "deltaEOK identical colors is zero" {
+    const a = Oklab(f32){ .l = 0.5, .a = 0.1, .b = -0.1 };
+    try std_testing.expectApproxEqAbs(@as(f32, 0), deltaEOK(f32, a, a), 0.0001);
+}
+
+test "deltaEOK known distance" {
+    const a = Oklab(f32){ .l = 0.5, .a = 0.0, .b = 0.0 };
+    const b = Oklab(f32){ .l = 0.6, .a = 0.0, .b = 0.0 };
+    try std_testing.expectApproxEqAbs(@as(f32, 0.1), deltaEOK(f32, a, b), 0.0001);
 }

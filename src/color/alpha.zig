@@ -35,7 +35,7 @@ pub fn Alpha(comptime ColorType: type) type {
             return self.color;
         }
 
-        /// Convert the inner color to a different color type, preserving alpha.
+        /// Convert the inner color to a different type, preserving alpha.
         pub fn convert(self: Self, comptime DestColor: type) Alpha(DestColor) {
             return Alpha(DestColor).init(
                 @import("../lib.zig").convert(self.color, DestColor),
@@ -61,9 +61,7 @@ pub fn Alpha(comptime ColorType: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const Srgb = @import("rgb/srgb.zig").Srgb;
 const Hsl = @import("hsm/hsl.zig").Hsl;

@@ -8,8 +8,7 @@ pub const Options = struct {
     json: bool = false,
 };
 
-/// Match a CLI name (hyphens) to a Space tag (underscores).
-/// Also supports short aliases: "xyz" -> .cie_xyz, "lab" -> .cie_lab, etc.
+/// Match a CLI name (hyphens) to a Space tag (underscores). Supports short aliases.
 pub fn spaceFromCliName(name: []const u8) ?lib.Space {
     const aliases = .{
         .{ "xyz", "cie_xyz" },
@@ -28,9 +27,8 @@ pub fn spaceFromCliName(name: []const u8) ?lib.Space {
     return std.meta.stringToEnum(lib.Space, buf[0..name.len]);
 }
 
-/// Get the CLI display name for a Space.
+/// CLI display name for a Space.
 pub fn spaceCliName(comptime space: lib.Space) []const u8 {
-    // Friendlier display names
     return switch (space) {
         .cie_xyz => "xyz",
         .cie_yxy => "yxy",
@@ -47,7 +45,7 @@ pub fn spaceCliName(comptime space: lib.Space) []const u8 {
     };
 }
 
-/// Format a Color with its CLI space name prefix, e.g. "oklch(0.61, 0.14, 45.08)".
+/// Format a Color with its CLI space name, e.g. "oklch(0.61, 0.14, 45.08)".
 pub fn formatColor(color: lib.Color, opts: Options, w: *Writer) Writer.Error!void {
     switch (color) {
         inline else => |c, tag| {
@@ -58,7 +56,7 @@ pub fn formatColor(color: lib.Color, opts: Options, w: *Writer) Writer.Error!voi
     }
 }
 
-/// Format just the comma-separated values of a color struct.
+/// Format comma-separated values of a color struct.
 pub fn formatValues(c: anytype, opts: Options, w: *Writer) Writer.Error!void {
     const fields = @typeInfo(@TypeOf(c)).@"struct".fields;
     inline for (fields, 0..) |f, i| {
@@ -67,7 +65,7 @@ pub fn formatValues(c: anytype, opts: Options, w: *Writer) Writer.Error!void {
     }
 }
 
-/// Format a single Color as JSON: {"space":"oklch","l":0.61,"c":0.14,"h":45.08,"alpha":0.5}
+/// Format a single Color as JSON.
 pub fn formatColorJson(c: lib.Color, alpha: ?f32, opts: Options, w: *Writer) Writer.Error!void {
     switch (c) {
         inline else => |v, tag| {
@@ -86,7 +84,7 @@ pub fn formatColorJson(c: lib.Color, alpha: ?f32, opts: Options, w: *Writer) Wri
     }
 }
 
-/// Format all spaces as JSON: {"alpha":0.5,"cie-xyz":{...},"srgb":{...},...}
+/// Format all spaces as JSON.
 pub fn formatAllJson(input: lib.Color, alpha: ?f32, opts: Options, w: *Writer) Writer.Error!void {
     return formatFilteredJson(input, alpha, std.EnumSet(lib.Space).initFull(), opts, w);
 }
@@ -161,9 +159,7 @@ pub fn p10(n: u8) f32 {
     return result;
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const testing = std.testing;
 
@@ -277,4 +273,24 @@ test "formatFilteredJson full set matches formatAllJson" {
     try formatAllJson(color, null, .{}, &w1);
     try formatFilteredJson(color, null, std.EnumSet(lib.Space).initFull(), .{}, &w2);
     try testing.expectEqualStrings(buf1[0..s1.pos], buf2[0..s2.pos]);
+}
+
+test "formatColor with null hue shows none" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+    const w = stream.writer().any();
+    const color = lib.Color{ .hsl = lib.Hsl(f32).init(null, 0, 0.5) };
+    try formatColor(color, .{}, &w);
+    const out = buf[0..stream.pos];
+    try testing.expect(std.mem.indexOf(u8, out, "none") != null);
+}
+
+test "formatColorJson with null hue shows null" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+    const w = stream.writer().any();
+    const color = lib.Color{ .hsl = lib.Hsl(f32).init(null, 0, 0.5) };
+    try formatColorJson(color, null, .{}, &w);
+    const out = buf[0..stream.pos];
+    try testing.expect(std.mem.indexOf(u8, out, "null") != null);
 }

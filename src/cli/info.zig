@@ -61,7 +61,7 @@ pub fn run(alloc: Allocator, args: *std.process.ArgIterator) !void {
             if (filter_mode == .show) return action.ActionError.HelpRequested;
             filter_mode = .hide;
         } else if (fmt.spaceFromCliName(arg)) |space| {
-            // Bare space name — only valid after --show or --hide
+            // Bare space name, only valid after --show or --hide
             if (filter_mode == .none) return action.ActionError.HelpRequested;
             filter_set.insert(space);
         } else {

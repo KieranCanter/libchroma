@@ -5,11 +5,7 @@ const color_formatter = @import("../../color_formatter.zig");
 const CieLab = @import("../lab/cie_lab.zig").CieLab;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// Type to hold a CIE LCH(ab) value (the cylindrical form of CIE L*a*b*).
-///
-/// l: lightness in [0, 100]
-/// c: chroma in [0, ~181]
-/// h: hue angle in [0, 360) or null when chroma is 0 (achromatic)
+/// CIE LCH(ab) color, the cylindrical form of CIE L*a*b*. l in [0,100], c in [0,~181], h in [0,360) or null.
 pub fn CieLch(comptime T: type) type {
     assertFloatType(T);
 
@@ -57,9 +53,7 @@ pub fn CieLch(comptime T: type) type {
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");

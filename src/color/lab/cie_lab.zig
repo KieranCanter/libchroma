@@ -6,17 +6,13 @@ const white_point = @import("../white_point.zig");
 const CieLch = @import("../lch/cie_lch.zig").CieLch;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// Type to hold a CIE L*a*b* value under the D65 illuminant (2° observer).
-///
-/// l: lightness in [0, 100]
-/// a: green–red axis, roughly [-128, 127]
-/// b: blue–yellow axis, roughly [-128, 127]
+/// CIE L*a*b* color (D65, 2° observer). l in [0,100], a/b roughly [-128, 127].
 pub fn CieLab(comptime T: type) type {
     assertFloatType(T);
 
     const wp = white_point.d65;
-    const epsilon: T = 216.0 / 24389.0; // ~ 0.008856 <- actual CIE standard
-    const kappa: T = 24389.0 / 27.0; // ~ 903.3 <- actual CIE standard
+    const epsilon: T = 216.0 / 24389.0; // CIE standard threshold
+    const kappa: T = 24389.0 / 27.0; // CIE standard coefficient
 
     return struct {
         const Self = @This();
@@ -109,20 +105,18 @@ pub fn CieLab(comptime T: type) type {
         pub fn toLch(self: Self) CieLch(T) {
             const threshold: T = if (T == f64) 1e-12 else 1e-6;
             const c = @sqrt(self.a * self.a + self.b * self.b);
-            if (c < threshold) { // consider this color achromatic if chroma is under certain threshold
+            if (c < threshold) { // achromatic
                 return CieLch(T).init(self.l, 0, null);
             }
 
-            var h = std.math.atan2(self.b, self.a) * (180.0 / std.math.pi); // h = atan(b/a)
+            var h = std.math.atan2(self.b, self.a) * (180.0 / std.math.pi);
             if (h < 0) h += 360.0;
             return CieLch(T).init(self.l, c, h);
         }
     };
 }
 
-// ============================================================================
-// TESTS
-// ============================================================================
+// Tests
 
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");

@@ -1,7 +1,7 @@
 const std = @import("std");
 const validation = @import("validation.zig");
 
-// Wrapper for expectApproxEqAbs for comparing float fields of a color
+// Approximate equality for color structs (compares all float fields).
 pub inline fn expectColorsApproxEqAbs(expected: anytype, actual: anytype, tolerance: anytype) !void {
     const E = @TypeOf(expected);
     const A = @TypeOf(actual);

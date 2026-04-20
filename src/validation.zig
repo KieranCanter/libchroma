@@ -4,7 +4,7 @@ const CieXyz = @import("color/xyz/cie_xyz.zig").CieXyz;
 
 const alpha = @import("color/alpha.zig");
 
-// Color interface validation
+// Requires toCieXyz, fromCieXyz, and Backing.
 pub inline fn assertColorInterface(comptime T: type) void {
     comptime {
         if (alpha.isAlpha(T)) {
@@ -25,7 +25,6 @@ pub inline fn assertColorInterface(comptime T: type) void {
     }
 }
 
-// RGB type validation
 pub inline fn assertRgbType(comptime T: type) void {
     comptime switch (@typeInfo(T)) {
         .int => {
@@ -40,7 +39,6 @@ pub inline fn assertRgbType(comptime T: type) void {
     };
 }
 
-// Float type validation
 pub inline fn assertFloatType(comptime T: type) void {
     comptime switch (@typeInfo(T)) {
         .float => return,
@@ -48,7 +46,7 @@ pub inline fn assertFloatType(comptime T: type) void {
     };
 }
 
-// Default to f32 when going from a u8 in RGB to float-only type
+// u8 -> f32, float -> itself
 pub inline fn rgbToFloatType(comptime T: type) type {
     return switch (@typeInfo(T)) {
         .float => T,

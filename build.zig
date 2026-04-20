@@ -42,8 +42,13 @@ pub fn build(b: *std.Build) !void {
     const lib_tests = b.addTest(.{
         .root_module = lib_mod,
     });
-    lib_tests.root_module.addIncludePath(b.path("include"));
-    lib_tests.root_module.linkSystemLibrary("c", .{});
+    // Translate chroma.h so the C ABI (chroma_c.zig) can use it in tests.
+    const translate_c = b.addTranslateC(.{
+        .root_source_file = b.path("include/chroma.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    lib_tests.root_module.addImport("chroma_h", translate_c.createModule());
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
     // CLI executable
