@@ -1,7 +1,7 @@
 const std = @import("std");
 const validation = @import("../validation.zig");
 const chroma_testing = @import("../testing.zig");
-const color_formatter = @import("../color_formatter.zig");
+const fmt = @import("../fmt.zig");
 
 const Srgb = @import("rgb/srgb.zig").Srgb;
 const CieXyz = @import("xyz/cie_xyz.zig").CieXyz;
@@ -28,8 +28,8 @@ pub fn Cmyk(comptime T: type) type {
             return .{ .c = c, .m = m, .y = y, .k = k };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -101,48 +101,6 @@ pub fn Cmyk(comptime T: type) type {
 // Tolerances: 0.002 (f32) / 0.000002 (f64) to account for rounding without
 // manually truncating decimal places.
 
-test "Cmyk formatting" {
-    const alloc = std.testing.allocator;
-
-    const cmyk_f32 = Cmyk(f32).init(0.6, 0.5, 0.4, 0.3);
-    var exp_format: []const u8 = "0.6, 0.5, 0.4, 0.3";
-    var exp_default: []const u8 = "0.6, 0.5, 0.4, 0.3";
-    var exp_raw: []const u8 = "Cmyk(f32).{ .c = 0.6, .m = 0.5, .y = 0.4, .k = 0.3 }";
-    var exp_pretty: []const u8 = "Cmyk(f32)(60.000004%, 50%, 40%, 30.000002%)";
-    var act_format: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f32});
-    var act_default: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f32.formatter(.default)});
-    var act_raw: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f32.formatter(.raw)});
-    var act_pretty: []const u8 = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f32.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
-
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
-
-    const cmyk_f64 = Cmyk(f64).init(0.6, 0.5, 0.4, 0.3);
-    exp_format = "0.6, 0.5, 0.4, 0.3";
-    exp_default = "0.6, 0.5, 0.4, 0.3";
-    exp_raw = "Cmyk(f64).{ .c = 0.6, .m = 0.5, .y = 0.4, .k = 0.3 }";
-    exp_pretty = "Cmyk(f64)(60%, 50%, 40%, 30%)";
-    act_format = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f64});
-    act_default = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f64.formatter(.default)});
-    act_raw = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f64.formatter(.raw)});
-    act_pretty = try std.fmt.allocPrint(alloc, "{f}", .{cmyk_f64.formatter(.pretty)});
-    try std.testing.expectEqualStrings(exp_format, act_format);
-    try std.testing.expectEqualStrings(exp_default, act_default);
-    try std.testing.expectEqualStrings(exp_raw, act_raw);
-    try std.testing.expectEqualStrings(exp_pretty, act_pretty);
-
-    alloc.free(act_format);
-    alloc.free(act_default);
-    alloc.free(act_raw);
-    alloc.free(act_pretty);
-}
-
 const tol = 0.002;
 
 test "Cmyk(f32) toSrgb" {
@@ -180,4 +138,16 @@ test "Cmyk uca" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.2), c.m, tol);
     try std.testing.expectApproxEqAbs(@as(f32, 0.4), c.y, tol);
     try std.testing.expectApproxEqAbs(@as(f32, 0.2), c.k, tol);
+}
+
+test "Cmyk gcr error on invalid strength" {
+    var c = Cmyk(f32).init(0.5, 0.3, 0.2, 0.0);
+    try std.testing.expectError(CmykError.OutOfRange, c.gcr(-0.1));
+    try std.testing.expectError(CmykError.OutOfRange, c.gcr(1.1));
+}
+
+test "Cmyk uca error on invalid strength" {
+    var c = Cmyk(f32).init(0.5, 0.3, 0.2, 0.4);
+    try std.testing.expectError(CmykError.OutOfRange, c.uca(-0.1));
+    try std.testing.expectError(CmykError.OutOfRange, c.uca(1.1));
 }

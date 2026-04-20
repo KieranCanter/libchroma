@@ -201,6 +201,46 @@ export fn chroma_field_count(space: CSpace) c_int {
     return @intCast(fieldCount(space));
 }
 
+/// Format a color as "space(v1, v2, v3)" into buf. Returns bytes written (excluding null),
+/// or -1 if the buffer is too small.
+export fn chroma_format(clr: CColor, buf: [*]u8, buf_size: c_int) c_int {
+    if (buf_size <= 0) return -1;
+    const size: usize = @intCast(buf_size);
+    var out: [128]u8 = undefined;
+    var len: usize = 0;
+
+    const name = @tagName(clr.space);
+    if (len + name.len + 1 > out.len) return -1;
+    @memcpy(out[len .. len + name.len], name);
+    len += name.len;
+    out[len] = '(';
+    len += 1;
+
+    const src: [*]const f32 = @ptrCast(&clr.data);
+    const n = fieldCount(clr.space);
+    for (0..n) |i| {
+        if (i > 0) {
+            if (len + 2 > out.len) return -1;
+            out[len] = ',';
+            out[len + 1] = ' ';
+            len += 2;
+        }
+        // Format float manually via a fixed writer
+        var w = std.Io.Writer.fixed(out[len..]);
+        w.print("{d:.4}", .{src[i]}) catch return -1;
+        len += w.end;
+    }
+
+    if (len + 1 > out.len) return -1;
+    out[len] = ')';
+    len += 1;
+
+    if (len >= size) return -1;
+    @memcpy(buf[0..len], out[0..len]);
+    buf[len] = 0;
+    return @intCast(len);
+}
+
 /// Parse a space name string into a `CSpace` enum value. Returns -1 if unknown.
 /// Supports short aliases: xyz, yxy, lab, lch, rgb.
 export fn chroma_space_from_name(name: [*:0]const u8) c_int {
@@ -486,4 +526,47 @@ test "C ABI header enum matches Zig CSpace" {
     try std.testing.expectEqual(c.CHROMA_LCH, @intFromEnum(CSpace.cie_lch));
     try std.testing.expectEqual(c.CHROMA_OKLAB, @intFromEnum(CSpace.oklab));
     try std.testing.expectEqual(c.CHROMA_OKLCH, @intFromEnum(CSpace.oklch));
+}
+
+test "chroma_space_count" {
+    const count = chroma_space_count();
+    try std.testing.expect(count > 0);
+    try std.testing.expectEqual(@as(c_int, @intCast(n_spaces)), count);
+}
+
+test "chroma_space_name" {
+    const name = chroma_space_name(0);
+    try std.testing.expect(name != null);
+    try std.testing.expect(std.mem.eql(u8, std.mem.sliceTo(name.?, 0), "cie_xyz"));
+    // Out of range returns null
+    try std.testing.expectEqual(@as(?[*:0]const u8, null), chroma_space_name(-1));
+    try std.testing.expectEqual(@as(?[*:0]const u8, null), chroma_space_name(chroma_space_count()));
+}
+
+test "chroma_field_count" {
+    try std.testing.expectEqual(@as(c_int, 3), chroma_field_count(.srgb));
+    try std.testing.expectEqual(@as(c_int, 4), chroma_field_count(.cmyk));
+    try std.testing.expectEqual(@as(c_int, 3), chroma_field_count(.oklch));
+}
+
+test "chroma_format" {
+    var buf: [128]u8 = undefined;
+    const clr = chroma_init_hex(0xC86432);
+    const len = chroma_format(clr, &buf, 128);
+    try std.testing.expect(len > 0);
+    const out = buf[0..@intCast(len)];
+    try std.testing.expect(std.mem.startsWith(u8, out, "srgb("));
+    try std.testing.expect(std.mem.endsWith(u8, out, ")"));
+    // Buffer too small returns -1
+    try std.testing.expectEqual(@as(c_int, -1), chroma_format(clr, &buf, 2));
+}
+
+test "chroma_space_from_name" {
+    try std.testing.expectEqual(@as(c_int, @intFromEnum(CSpace.srgb)), chroma_space_from_name("srgb"));
+    try std.testing.expectEqual(@as(c_int, @intFromEnum(CSpace.oklch)), chroma_space_from_name("oklch"));
+    // Aliases
+    try std.testing.expectEqual(@as(c_int, @intFromEnum(CSpace.cie_xyz)), chroma_space_from_name("xyz"));
+    try std.testing.expectEqual(@as(c_int, @intFromEnum(CSpace.srgb)), chroma_space_from_name("rgb"));
+    // Unknown returns -1
+    try std.testing.expectEqual(@as(c_int, -1), chroma_space_from_name("bogus"));
 }

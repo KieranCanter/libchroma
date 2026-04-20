@@ -1,6 +1,6 @@
 const std = @import("std");
 const validation = @import("../validation.zig");
-const color_formatter = @import("../color_formatter.zig");
+const fmt = @import("../fmt.zig");
 
 /// Returns true if T is an Alpha-wrapped color type.
 pub inline fn isAlpha(comptime T: type) bool {
@@ -45,8 +45,8 @@ pub fn Alpha(comptime ColorType: type) type {
             );
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {

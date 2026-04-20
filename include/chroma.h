@@ -251,6 +251,12 @@ const char *chroma_space_name(int index);
 int chroma_field_count(chroma_space_t space);
 
 /*
+ * Format a color as "space(v1, v2, v3)" into buf. Returns bytes written (excluding null),
+ * or -1 if the buffer is too small. buf is null-terminated on success.
+ */
+int chroma_format(chroma_color_t color, char *buf, int buf_size);
+
+/*
  * Generic init / unpack
  * `vals` must point to 3 floats for most spaces, or 4 for CMYK.
  */

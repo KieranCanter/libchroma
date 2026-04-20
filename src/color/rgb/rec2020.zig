@@ -1,7 +1,7 @@
 const std = @import("std");
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");
-const color_formatter = @import("../../color_formatter.zig");
+const fmt = @import("../../fmt.zig");
 const rgb = @import("../rgb.zig");
 const rgbCast = @import("../rgb.zig").rgbCast;
 
@@ -44,8 +44,8 @@ pub fn Rec2020(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -53,7 +53,7 @@ pub fn Rec2020(comptime T: type) type {
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Rec2020({s})({f})", .{ @typeName(T), self.r, self.g, self.b });
+            try writer.print("Rec2020({s})(", .{@typeName(T)}); try self.format(writer); try writer.writeAll(")");
         }
 
         pub fn toCieXyz(self: Self) CieXyz(F) {
@@ -132,8 +132,8 @@ pub fn Rec2020Scene(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -141,7 +141,7 @@ pub fn Rec2020Scene(comptime T: type) type {
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("Rec2020Scene({s})({f})", .{ @typeName(T), self });
+            try writer.print("Rec2020Scene({s})(", .{@typeName(T)}); try self.format(writer); try writer.writeAll(")");
         }
 
         pub inline fn cast(self: Self, comptime U: type) Rec2020Scene(U) {
@@ -234,8 +234,8 @@ pub fn LinearRec2020(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -243,7 +243,7 @@ pub fn LinearRec2020(comptime T: type) type {
         }
 
         pub fn formatPretty(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-            try writer.print("LinearRec2020({s})({f})", .{ @typeName(T), self });
+            try writer.print("LinearRec2020({s})(", .{@typeName(T)}); try self.format(writer); try writer.writeAll(")");
         }
 
         pub fn toCieXyz(self: Self) CieXyz(F) {

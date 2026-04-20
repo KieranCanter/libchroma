@@ -5,13 +5,11 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Helper: unpack a color's channels into a float array and return the count. */
+/* Helper: format and print a color */
 static void print_color(const char *label, chroma_color_t c) {
-    float v[4];
-    int n = chroma_unpack(c, v);
-    printf("%s: (", label);
-    for (int i = 0; i < n; i++) printf("%s%.4f", i ? ", " : "", v[i]);
-    printf(")\n");
+    char buf[128];
+    chroma_format(c, buf, sizeof(buf));
+    printf("%s: %s\n", label, buf);
 }
 
 int main(void) {
@@ -81,10 +79,16 @@ int main(void) {
     }
 
     chroma_color_t clr = chroma_init(space, vals);
+    char fmt[128];
 
-    printf("\nhex:     #%06X\n", chroma_unpack_hex(clr));
-    print_color("srgb", chroma_convert(clr, CHROMA_SRGB));
-    print_color("oklch", chroma_convert(clr, CHROMA_OKLCH));
+    printf("\n");
+    printf("hex:   #%06X\n", chroma_unpack_hex(clr));
+    chroma_format(clr, fmt, sizeof(fmt));
+    printf("input: %s\n", fmt);
+    chroma_format(chroma_convert(clr, CHROMA_SRGB), fmt, sizeof(fmt));
+    printf("srgb:  %s\n", fmt);
+    chroma_format(chroma_convert(clr, CHROMA_OKLCH), fmt, sizeof(fmt));
+    printf("oklch: %s\n", fmt);
 
     return 0;
 }

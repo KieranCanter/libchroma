@@ -1,6 +1,6 @@
 const std = @import("std");
 const assertFloatType = @import("../../validation.zig").assertFloatType;
-const color_formatter = @import("../../color_formatter.zig");
+const fmt = @import("../../fmt.zig");
 const WhitePoint = @import("../WhitePoint.zig");
 
 const CieLch = @import("../lch/cie_lch.zig").CieLch;
@@ -29,8 +29,8 @@ pub fn CieLab(comptime T: type) type {
             return .{ .l = l, .a = a, .b = b };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -124,14 +124,15 @@ pub fn CieLab(comptime T: type) type {
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");
 
-test "CieLab(f32) fromCieXyz" {
-    const tolerance = 0.002;
+const tol: f32 = 0.002;
+const tol64: f64 = 0.000002;
 
+test "CieLab(f32) fromCieXyz" {
     // D65 white -> Lab(100, 0, 0)
     var xyz = CieXyz(f32).init(0.95047, 1.0, 1.08883);
     var expected = CieLab(f32).init(100.0, 0.0, 0.0);
     var actual = CieLab(f32).fromCieXyz(xyz);
-    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tol);
 
     // Black
     xyz = CieXyz(f32).init(0, 0, 0);
@@ -143,16 +144,14 @@ test "CieLab(f32) fromCieXyz" {
     xyz = CieXyz(f32).init(0.2895, 0.2163, 0.0567);
     expected = CieLab(f32).init(53.632, 36.275, 45.370);
     actual = CieLab(f32).fromCieXyz(xyz);
-    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tol);
 }
 
 test "CieLab(f64) fromCieXyz" {
-    const tolerance = 0.000002;
-
     var xyz = CieXyz(f64).init(0.95047, 1.0, 1.08883);
     var expected = CieLab(f64).init(100.0, 0.0, 0.0);
     var actual = CieLab(f64).fromCieXyz(xyz);
-    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tol64);
 
     xyz = CieXyz(f64).init(0, 0, 0);
     expected = CieLab(f64).init(0, 0, 0);
@@ -161,37 +160,31 @@ test "CieLab(f64) fromCieXyz" {
 }
 
 test "CieLab(f32) toCieXyz round-trip" {
-    const tolerance = 0.002;
-
     const original = CieXyz(f32).init(0.2895, 0.2163, 0.0567);
     const lab = CieLab(f32).fromCieXyz(original);
     const result = lab.toCieXyz();
-    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }
 
 test "CieLab(f64) toCieXyz round-trip" {
-    const tolerance = 0.000002;
-
     const original = CieXyz(f64).init(0.289514, 0.216258, 0.056673);
     const lab = CieLab(f64).fromCieXyz(original);
     const result = lab.toCieXyz();
-    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
 test "CieLab(f32) toLch" {
-    const tolerance = 0.002;
-
     // Achromatic (a=0, b=0) -> chroma=0, hue=null
     var lab = CieLab(f32).init(50.0, 0.0, 0.0);
     var lch = lab.toLch();
-    try std.testing.expectApproxEqAbs(@as(f32, 50.0), lch.l, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), lch.c, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 50.0), lch.l, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), lch.c, tol);
     try std.testing.expectEqual(@as(?f32, null), lch.h);
 
     // Chromatic
     lab = CieLab(f32).init(53.539, 30.344, 40.602);
     lch = lab.toLch();
-    try std.testing.expectApproxEqAbs(@as(f32, 53.539), lch.l, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 50.688), lch.c, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 53.227), lch.h.?, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 53.539), lch.l, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 50.688), lch.c, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 53.227), lch.h.?, tol);
 }

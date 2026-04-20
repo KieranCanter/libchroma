@@ -1,6 +1,6 @@
 const std = @import("std");
 const assertFloatType = @import("../../validation.zig").assertFloatType;
-const color_formatter = @import("../../color_formatter.zig");
+const fmt = @import("../../fmt.zig");
 
 const LinearSrgb = @import("../rgb/srgb.zig").LinearSrgb;
 const Oklch = @import("../lch/oklch.zig").Oklch;
@@ -56,8 +56,8 @@ pub fn Oklab(comptime T: type) type {
             return .{ .l = l, .a = a, .b = b };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -123,14 +123,15 @@ const Srgb = @import("../rgb/srgb.zig").Srgb;
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");
 
-test "Oklab(f32) fromLinearSrgb" {
-    const tolerance = 0.002;
+const tol: f32 = 0.002;
+const tol64: f64 = 0.000002;
 
+test "Oklab(f32) fromLinearSrgb" {
     // White
     var lrgb = LinearSrgb(f32).init(1, 1, 1);
     var expected = Oklab(f32).init(1.0, 0.0, 0.0);
     var actual = Oklab(f32).fromLinearSrgb(lrgb);
-    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tol);
 
     // Black
     lrgb = LinearSrgb(f32).init(0, 0, 0);
@@ -142,41 +143,35 @@ test "Oklab(f32) fromLinearSrgb" {
     lrgb = LinearSrgb(f32).init(1, 0, 0);
     expected = Oklab(f32).init(0.628, 0.225, 0.126);
     actual = Oklab(f32).fromLinearSrgb(lrgb);
-    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(expected, actual, tol);
 }
 
 test "Oklab(f32) toLinearSrgb round-trip" {
-    const tolerance = 0.002;
-
     const original = LinearSrgb(f32).init(0.578, 0.127, 0.032);
     const oklab = Oklab(f32).fromLinearSrgb(original);
     const result = oklab.toLinearSrgb();
-    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }
 
 test "Oklab(f64) toLinearSrgb round-trip" {
-    const tolerance = 0.000002;
-
     const original = LinearSrgb(f64).init(0.577580, 0.127438, 0.031896);
     const oklab = Oklab(f64).fromLinearSrgb(original);
     const result = oklab.toLinearSrgb();
-    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
 test "Oklab(f32) toOklch" {
-    const tolerance = 0.002;
-
     // Achromatic
     var oklab = Oklab(f32).init(0.5, 0.0, 0.0);
     var oklch = oklab.toOklch();
-    try std.testing.expectApproxEqAbs(@as(f32, 0.5), oklch.l, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklch.c, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), oklch.l, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklch.c, tol);
     try std.testing.expectEqual(@as(?f32, null), oklch.h);
 
     // Chromatic (red-ish)
     oklab = Oklab(f32).init(0.628, 0.225, 0.126);
     oklch = oklab.toOklch();
-    try std.testing.expectApproxEqAbs(@as(f32, 0.628), oklch.l, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.258), oklch.c, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 29.249), oklch.h.?, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.628), oklch.l, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.258), oklch.c, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 29.249), oklch.h.?, tol);
 }

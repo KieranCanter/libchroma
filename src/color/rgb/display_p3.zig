@@ -1,7 +1,7 @@
 const std = @import("std");
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");
-const color_formatter = @import("../../color_formatter.zig");
+const fmt = @import("../../fmt.zig");
 const rgb = @import("../rgb.zig");
 const rgbCast = @import("../rgb.zig").rgbCast;
 
@@ -44,8 +44,8 @@ pub fn DisplayP3(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -136,8 +136,8 @@ pub fn LinearDisplayP3(comptime T: type) type {
             return .{ .r = r, .g = g, .b = b };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {

@@ -92,8 +92,8 @@ pub fn main(init: std.process.Init) !void {
     const oklch_out = chroma.color.convert(input_color, .oklch);
 
     try out.writeAll("\n");
-    try out.print("{s}: {f}\n", .{ @tagName(space), chroma.color.formatter(input_color) });
-    try out.print("srgb: {f}\n", .{chroma.color.formatter(srgb)});
-    try out.print("oklch: {f}\n", .{chroma.color.formatter(oklch_out)});
+    try out.print("{s}: {f}\n", .{ @tagName(space), chroma.color.formatter(input_color, .default) });
+    try out.print("srgb: {f}\n", .{chroma.color.formatter(srgb, .default)});
+    try out.print("oklch: {f}\n", .{chroma.color.formatter(oklch_out, .default)});
     try out.flush();
 }

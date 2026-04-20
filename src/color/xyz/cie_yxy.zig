@@ -2,7 +2,7 @@ const std = @import("std");
 const assertFloatType = @import("../../validation.zig").assertFloatType;
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");
-const color_formatter = @import("../../color_formatter.zig");
+const fmt = @import("../../fmt.zig");
 
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("cie_xyz.zig").CieXyz;
@@ -26,8 +26,8 @@ pub fn CieYxy(comptime T: type) type {
             return .{ .luma = luma, .x = x, .y = y };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {

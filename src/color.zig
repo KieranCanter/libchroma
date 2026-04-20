@@ -88,7 +88,7 @@ pub const Color = @Union(.auto, Space, &field_names, &field_types, &no_attrs);
 /// A Color paired with an alpha channel value.
 pub const AlphaColor = struct {
     color: Color,
-    a: f32 = 1.0,
+    alpha: f32 = 1.0,
 };
 
 // Conversion functions for Color and AlphaColor
@@ -97,7 +97,7 @@ pub const AlphaColor = struct {
 pub fn convert(src: anytype, dest: Space) @TypeOf(src) {
     return switch (@TypeOf(src)) {
         Color => fromCieXyz(toCieXyz(src), dest),
-        AlphaColor => .{ .color = fromCieXyz(toCieXyz(src.color), dest), .a = src.a },
+        AlphaColor => .{ .color = fromCieXyz(toCieXyz(src.color), dest), .alpha = src.alpha },
         else => @compileError("expected Color or AlphaColor"),
     };
 }
@@ -144,7 +144,7 @@ pub fn initFromSlice(space: Space, vals: []const f32) InitError!Color {
 
 /// Wrap a Color with an alpha value to produce an AlphaColor.
 pub fn withAlpha(c: Color, a: f32) AlphaColor {
-    return .{ .color = c, .a = a };
+    return .{ .color = c, .alpha = a };
 }
 
 /// Return the struct field names for a given color space.
@@ -162,27 +162,11 @@ pub fn fieldNames(space: Space) []const []const u8 {
     };
 }
 
-/// Wrapper that implements the std.Io.Writer format interface for use with print's {%f} specifier.
-pub const Fmt = struct {
-    color: Color,
-    alpha: ?f32 = null,
+/// Runtime formatter. See `fmt.zig` for details.
+pub const ColorFormat = @import("fmt.zig").ColorFormat;
 
-    pub fn format(self: Fmt, w: *std.Io.Writer) std.Io.Writer.Error!void {
-        switch (self.color) {
-            inline else => |c| try c.format(w),
-        }
-        if (self.alpha) |a| try w.print(", {d}", .{a});
-    }
-};
-
-/// Return a Fmt wrapper for use with print: `try out.print("{f}\n", .{color.formatter(c)});`
-pub fn formatter(src: anytype) Fmt {
-    return switch (@TypeOf(src)) {
-        Color => .{ .color = src },
-        AlphaColor => .{ .color = src.color, .alpha = src.a },
-        else => @compileError("expected Color or AlphaColor"),
-    };
-}
+/// Return a ColorFormat: `try out.print("{f}\n", .{color.formatter(c, .default)});`
+pub const formatter = @import("fmt.zig").formatter;
 
 // Comptime helpers for type name extraction
 
@@ -236,7 +220,7 @@ test "AlphaColor.convert preserves alpha" {
     const srgb_val = Srgb(f32).init(0.7843, 0.3922, 0.1961);
     const ac = withAlpha(.{ .srgb = srgb_val }, 0.5);
     const result = convert(ac, .oklch);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.5), result.a, 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), result.alpha, 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 0.6138), result.color.oklch.l, 0.002);
 }
 
@@ -275,7 +259,7 @@ test "formatter Color" {
     var buf: [256]u8 = undefined;
     var w = std.Io.Writer.fixed(&buf);
     const c = Color{ .srgb = Srgb(f32).init(0.5, 0.3, 0.1) };
-    try w.print("{f}", .{formatter(c)});
+    try w.print("{f}", .{formatter(c, .default)});
     try std.testing.expect(w.end > 0);
 }
 
@@ -283,7 +267,19 @@ test "formatter AlphaColor includes alpha" {
     var buf: [256]u8 = undefined;
     var w = std.Io.Writer.fixed(&buf);
     const ac = withAlpha(.{ .srgb = Srgb(f32).init(0.5, 0.3, 0.1) }, 0.75);
-    try w.print("{f}", .{formatter(ac)});
+    try w.print("{f}", .{formatter(ac, .default)});
     const out = buf[0..w.end];
     try std.testing.expect(std.mem.indexOf(u8, out, "0.75") != null);
+}
+
+test "fieldNames returns correct names" {
+    const srgb_fields = fieldNames(.srgb);
+    try std.testing.expectEqual(@as(usize, 3), srgb_fields.len);
+    try std.testing.expect(std.mem.eql(u8, srgb_fields[0], "r"));
+    try std.testing.expect(std.mem.eql(u8, srgb_fields[1], "g"));
+    try std.testing.expect(std.mem.eql(u8, srgb_fields[2], "b"));
+
+    const cmyk_fields = fieldNames(.cmyk);
+    try std.testing.expectEqual(@as(usize, 4), cmyk_fields.len);
+    try std.testing.expect(std.mem.eql(u8, cmyk_fields[0], "c"));
 }

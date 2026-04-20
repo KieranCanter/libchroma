@@ -1,6 +1,6 @@
 const std = @import("std");
 const assertFloatType = @import("../../validation.zig").assertFloatType;
-const color_formatter = @import("../../color_formatter.zig");
+const fmt = @import("../../fmt.zig");
 
 const Oklab = @import("../lab/oklab.zig").Oklab;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
@@ -24,8 +24,8 @@ pub fn Oklch(comptime T: type) type {
             return .{ .l = l, .c = c, .h = h };
         }
 
-        pub fn formatter(self: Self, style: color_formatter.ColorFormatStyle) color_formatter.ColorFormatter(Self) {
-            return color_formatter.ColorFormatter(Self).init(self, style);
+        pub fn formatter(self: Self, style: fmt.FormatStyle) fmt.TypeFormat(Self) {
+            return fmt.TypeFormat(Self).init(self, style);
         }
 
         pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -60,49 +60,42 @@ pub fn Oklch(comptime T: type) type {
 const validation = @import("../../validation.zig");
 const chroma_testing = @import("../../testing.zig");
 
-test "Oklch(f32) toOklab achromatic" {
-    const tolerance = 0.002;
+const tol: f32 = 0.002;
+const tol64: f64 = 0.000002;
 
+test "Oklch(f32) toOklab achromatic" {
     const oklch = Oklch(f32).init(0.5, 0.0, null);
     const oklab = oklch.toOklab();
-    try std.testing.expectApproxEqAbs(@as(f32, 0.5), oklab.l, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklab.a, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklab.b, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), oklab.l, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklab.a, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), oklab.b, tol);
 }
 
 test "Oklch(f32) toOklab chromatic" {
-    const tolerance = 0.002;
-
     const oklch = Oklch(f32).init(0.628, 0.258, 29.234);
     const oklab = oklch.toOklab();
-    try std.testing.expectApproxEqAbs(@as(f32, 0.628), oklab.l, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.225), oklab.a, tolerance);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.126), oklab.b, tolerance);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.628), oklab.l, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.225), oklab.a, tol);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.126), oklab.b, tol);
 }
 
 test "Oklch(f32) Oklab round-trip" {
-    const tolerance = 0.002;
-
     const original = Oklab(f32).init(0.628, 0.225, 0.126);
     const oklch = original.toOklch();
     const result = oklch.toOklab();
-    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }
 
 test "Oklch(f64) Oklab round-trip" {
-    const tolerance = 0.000002;
-
     const original = Oklab(f64).init(0.628, 0.225, 0.126);
     const oklch = original.toOklch();
     const result = oklch.toOklab();
-    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol64);
 }
 
 test "Oklch(f32) XYZ round-trip" {
-    const tolerance = 0.002;
-
     const original = CieXyz(f32).init(0.2895, 0.2163, 0.0567);
     const oklch = Oklch(f32).fromCieXyz(original);
     const result = oklch.toCieXyz();
-    try chroma_testing.expectColorsApproxEqAbs(original, result, tolerance);
+    try chroma_testing.expectColorsApproxEqAbs(original, result, tol);
 }
