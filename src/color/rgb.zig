@@ -23,6 +23,7 @@ const Hsv = @import("hsm/hsv.zig").Hsv;
 const Hwb = @import("hsm/hwb.zig").Hwb;
 const CieXyz = @import("xyz/cie_xyz.zig").CieXyz;
 
+/// Errors returned by RGB parsing operations.
 pub const RgbError = error{
     InvalidHexString,
 };
@@ -44,6 +45,7 @@ fn parseByte(byte: []const u8) RgbError!u8 {
     return nib_left | nib_right;
 }
 
+/// Parse a 6-char hex string (with or without leading '#') into a u24 color value.
 pub fn parseHexString(hex_str: []const u8) RgbError!u24 {
     if (hex_str.len == 7 and hex_str[0] == '#') {
         return parseHexString(hex_str[1..]);
@@ -60,10 +62,12 @@ pub fn parseHexString(hex_str: []const u8) RgbError!u24 {
     return byte0 | byte1 | byte2;
 }
 
+/// Pack r, g, b bytes into a single u24 (0xRRGGBB).
 pub fn packHex(r: u8, g: u8, b: u8) u24 {
     return @as(u24, r) << 16 | @as(u16, g) << 8 | b;
 }
 
+/// Convert a linear RGB color to CIE XYZ using the given 3x3 matrix.
 pub fn linearToCieXyz(matrix: [3][3]f32, linear: anytype) CieXyz(rgbToFloatType(@TypeOf(linear).Backing)) {
     const F = rgbToFloatType(@TypeOf(linear).Backing);
     const lin_r = rgbCast(F, linear.r);
@@ -77,6 +81,7 @@ pub fn linearToCieXyz(matrix: [3][3]f32, linear: anytype) CieXyz(rgbToFloatType(
     );
 }
 
+/// Convert CIE XYZ to a linear RGB color using the given 3x3 matrix.
 pub fn linearFromCieXyz(comptime LinearRgb: type, matrix: [3][3]f32, xyz: anytype) LinearRgb {
     const F = rgbToFloatType(@TypeOf(xyz).Backing);
     const T = LinearRgb.Backing;
@@ -92,6 +97,7 @@ pub fn linearFromCieXyz(comptime LinearRgb: type, matrix: [3][3]f32, xyz: anytyp
     );
 }
 
+/// Convert an RGB color to CMYK.
 // Formula for sRGB -> CMYK conversion:
 // https://www.101computing.net/cmyk-to-rgb-conversion-algorithm/
 pub fn toCmyk(rgb: anytype) Cmyk(rgbToFloatType(@TypeOf(rgb).Backing)) {
@@ -112,6 +118,7 @@ pub fn toCmyk(rgb: anytype) Cmyk(rgbToFloatType(@TypeOf(rgb).Backing)) {
     return Cmyk(F).init(c, m, y, k);
 }
 
+/// Convert an RGB color to HSI.
 // Formula for sRGB -> HSI conversion:
 // https://www.rmuti.ac.th/user/kedkarn/impfile/RGB_to_HSI.pdf
 pub fn toHsi(rgb: anytype) Hsi(rgbToFloatType(@TypeOf(rgb).Backing)) {
@@ -140,6 +147,7 @@ pub fn toHsi(rgb: anytype) Hsi(rgbToFloatType(@TypeOf(rgb).Backing)) {
     return Hsi(F).init(h, s, i);
 }
 
+/// Convert an RGB color to HSL.
 // Formula for sRGB -> HSL conversion:
 // https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
 pub fn toHsl(rgb: anytype) Hsl(rgbToFloatType(@TypeOf(rgb).Backing)) {
@@ -168,7 +176,8 @@ pub fn toHsl(rgb: anytype) Hsl(rgbToFloatType(@TypeOf(rgb).Backing)) {
     return Hsl(F).init(h, s, l);
 }
 
-// Formula for sRGB -> HSL conversion:
+/// Convert an RGB color to HSV.
+// Formula for sRGB -> HSV conversion:
 // https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
 pub fn toHsv(rgb: anytype) Hsv(rgbToFloatType(@TypeOf(rgb).Backing)) {
     const F = rgbToFloatType(@TypeOf(rgb).Backing);
@@ -194,6 +203,7 @@ pub fn toHsv(rgb: anytype) Hsv(rgbToFloatType(@TypeOf(rgb).Backing)) {
     return Hsv(F).init(h, s, xmax);
 }
 
+/// Convert an RGB color to HWB.
 // Formula for sRGB -> HWB conversion:
 // https://www.w3.org/TR/css-color-4/#rgb-to-hwb
 pub fn toHwb(rgb: anytype) Hwb(rgbToFloatType(@TypeOf(rgb).Backing)) {
@@ -219,7 +229,7 @@ pub fn toHwb(rgb: anytype) Hwb(rgbToFloatType(@TypeOf(rgb).Backing)) {
 }
 
 /// Compute hue from RGB using the max-channel linear method instead of the
-/// expensive acos/sqrt trigonometric approach. Each 60° sector has a dominant
+/// expensive acos/sqrt trigonometric approach. Each 60-degree sector has a dominant
 /// channel, so the cosine ratio simplifies to a linear function of chroma.
 fn computeHue(comptime F: type, r: F, g: F, b: F, xmax: F, xmin: F) F {
     const chroma = xmax - xmin;

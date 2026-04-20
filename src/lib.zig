@@ -5,9 +5,13 @@ comptime {
     _ = @import("c/chroma_c.zig");
 }
 
+/// Color types, space enum, and tagged union conversion.
 pub const color = @import("color.zig");
+/// Alpha channel wrapper for any color type.
 pub const alpha = @import("color/alpha.zig");
+/// Gamut mapping via OKLCH chroma reduction.
 pub const gamut = @import("gamut.zig");
+/// Test helpers for comparing color values.
 pub const testing = @import("testing.zig");
 
 // Convenience type re-exports
@@ -17,7 +21,7 @@ pub const Color = color.Color;
 pub const Space = color.Space;
 pub const AlphaColor = color.AlphaColor;
 
-// Color space types
+// Comptime color space types
 pub const Cmyk = color.Cmyk;
 pub const Hsi = color.Hsi;
 pub const Hsl = color.Hsl;
@@ -45,7 +49,7 @@ pub const Alpha = alpha.Alpha;
 const validation = @import("validation.zig");
 pub const assertColorInterface = validation.assertColorInterface;
 
-// Universal conversion (comptime)
+/// Convert between any two color types at comptime, routing through CIE XYZ if needed.
 pub fn convert(src: anytype, comptime Dest: type) Dest {
     const Src = @TypeOf(src);
     assertColorInterface(Src);
@@ -111,5 +115,5 @@ pub fn convert(src: anytype, comptime Dest: type) Dest {
 // Tests
 
 test {
-    std.testing.refAllDeclsRecursive(@This());
+    std.testing.refAllDecls(@This());
 }

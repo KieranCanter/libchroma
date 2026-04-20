@@ -5,7 +5,10 @@ const color_formatter = @import("../../color_formatter.zig");
 const CieLab = @import("../lab/cie_lab.zig").CieLab;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// CIE LCH(ab) color, the cylindrical form of CIE L*a*b*. l in [0,100], c in [0,~181], h in [0,360) or null.
+/// CIE LCH(ab) color, cylindrical form of CIE L*a*b*.
+/// `l`: lightness in [0, 100]
+/// `c`: chroma in [0, ~181]
+/// `h`: hue in [0, 360) or `null` when achromatic
 pub fn CieLch(comptime T: type) type {
     assertFloatType(T);
 

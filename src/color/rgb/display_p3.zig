@@ -26,7 +26,8 @@ const XYZ_TO_P3: [3][3]f32 = .{
     .{ 0.03584583024378447, -0.07617238926804182, 0.9568845240076872 },
 };
 
-/// Non-linear Display-P3 color. Apple's wide-gamut variant of DCI-P3, covering ~53.6% of CIE 1931.
+/// Non-linear Display P3 color (~53.6% of CIE 1931).
+/// `r`, `g`, `b`: gamma-encoded in [0, 1]
 pub fn DisplayP3(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -117,7 +118,8 @@ pub fn DisplayP3(comptime T: type) type {
     };
 }
 
-/// Linearized Display-P3 color.
+/// Linearized Display P3 color.
+/// `r`, `g`, `b`: linear light in [0, 1]
 pub fn LinearDisplayP3(comptime T: type) type {
     validation.assertFloatType(T);
 

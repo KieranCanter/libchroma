@@ -1,7 +1,7 @@
 const std = @import("std");
 const validation = @import("validation.zig");
 
-// Approximate equality for color structs (compares all float fields).
+/// Assert two color structs are approximately equal across all channels.
 pub inline fn expectColorsApproxEqAbs(expected: anytype, actual: anytype, tolerance: anytype) !void {
     const E = @TypeOf(expected);
     const A = @TypeOf(actual);

@@ -81,8 +81,11 @@ const field_types: [n_spaces]type = blk: {
 
 const no_attrs: [n_spaces]std.builtin.Type.UnionField.Attributes = @splat(.{});
 
+/// Enum of all supported color spaces.
 pub const Space = @Enum(u8, .exhaustive, &field_names, &tag_values);
+/// Tagged union holding a color value in any supported space.
 pub const Color = @Union(.auto, Space, &field_names, &field_types, &no_attrs);
+/// A Color paired with an alpha channel value.
 pub const AlphaColor = struct {
     color: Color,
     a: f32 = 1.0,
@@ -90,6 +93,7 @@ pub const AlphaColor = struct {
 
 // Conversion functions for Color and AlphaColor
 
+/// Convert a Color or AlphaColor to a different color space at runtime.
 pub fn convert(src: anytype, dest: Space) @TypeOf(src) {
     return switch (@TypeOf(src)) {
         Color => fromCieXyz(toCieXyz(src), dest),
@@ -98,6 +102,7 @@ pub fn convert(src: anytype, dest: Space) @TypeOf(src) {
     };
 }
 
+/// Convert any Color or AlphaColor to CIE XYZ.
 pub fn toCieXyz(src: anytype) CieXyz(f32) {
     const inner = switch (@TypeOf(src)) {
         Color => src,
@@ -109,6 +114,7 @@ pub fn toCieXyz(src: anytype) CieXyz(f32) {
     };
 }
 
+/// Construct a Color in the given space from CIE XYZ.
 pub fn fromCieXyz(src: CieXyz(f32), dest: Space) Color {
     const fields = @typeInfo(Color).@"union".fields;
     return switch (dest) {
@@ -116,8 +122,10 @@ pub fn fromCieXyz(src: CieXyz(f32), dest: Space) Color {
     };
 }
 
+/// Errors returned by initFromSlice.
 pub const InitError = error{InvalidValueCount};
 
+/// Build a Color from a float slice; errors if length doesn't match the space's channel count.
 pub fn initFromSlice(space: Space, vals: []const f32) InitError!Color {
     const fields = @typeInfo(Color).@"union".fields;
     return switch (space) {
@@ -134,10 +142,12 @@ pub fn initFromSlice(space: Space, vals: []const f32) InitError!Color {
     };
 }
 
+/// Wrap a Color with an alpha value to produce an AlphaColor.
 pub fn withAlpha(c: Color, a: f32) AlphaColor {
     return .{ .color = c, .a = a };
 }
 
+/// Write a human-readable representation of a Color or AlphaColor.
 pub fn format(src: anytype, writer: *std.Io.Writer) std.Io.Writer.Error!void {
     switch (@TypeOf(src)) {
         Color => switch (src) {

@@ -9,7 +9,10 @@ const Hsv = @import("hsv.zig").Hsv;
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// HSI color: h in [0,360] or null, s and i in [0,1].
+/// HSI color.
+/// `h`: hue in [0, 360] or `null` when achromatic
+/// `s`: saturation in [0, 1]
+/// `i`: intensity in [0, 1]
 pub fn Hsi(comptime T: type) type {
     assertFloatType(T);
 

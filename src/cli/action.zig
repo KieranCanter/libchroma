@@ -1,29 +1,32 @@
 const std = @import("std");
 const lib = @import("libchroma");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 const convert = @import("convert.zig");
 const fmt = @import("format.zig");
 const info = @import("info.zig");
 
+/// Signals that the user asked for --help instead of running a command.
 pub const ActionError = error{HelpRequested};
 
+/// Top-level CLI subcommand.
 pub const Action = enum {
     convert,
     info,
 
-    pub fn run(self: Action, alloc: Allocator, args: *std.process.ArgIterator) !void {
+    pub fn run(self: Action, alloc: Allocator, io: Io, args: *std.process.Args.Iterator) !void {
         return switch (self) {
-            .convert => convert.run(alloc, args),
-            .info => info.run(alloc, args),
+            .convert => convert.run(alloc, io, args),
+            .info => info.run(alloc, io, args),
         } catch |err| switch (err) {
-            ActionError.HelpRequested => self.printHelp(),
+            ActionError.HelpRequested => self.printHelp(io),
             else => return err,
         };
     }
 
-    fn printHelp(self: Action) void {
+    fn printHelp(self: Action, io: Io) void {
         var buf: [4096]u8 = undefined;
-        var w = std.fs.File.stdout().writer(&buf);
+        var w = std.Io.File.stdout().writer(io, &buf);
         const stdout = &w.interface;
 
         stdout.writeAll(switch (self) {

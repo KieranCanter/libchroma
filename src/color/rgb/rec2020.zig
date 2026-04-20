@@ -26,7 +26,8 @@ const XYZ_TO_REC2020: [3][3]f32 = .{
     .{ 0.017639857445311, -0.042770613257809, 0.942103121235474 },
 };
 
-/// Non-linear Rec. 2020 color (display-referred, Rec. 1886 EOTF). Covers ~75.8% of CIE 1931.
+/// Non-linear Rec. 2020 color, display-referred (Rec. 1886 EOTF, ~75.8% of CIE 1931).
+/// `r`, `g`, `b`: gamma-encoded in [0, 1]
 pub fn Rec2020(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -113,7 +114,8 @@ pub fn Rec2020(comptime T: type) type {
     };
 }
 
-/// Non-linear Rec. 2020 color (scene-referred, Rec. 2020 OETF).
+/// Non-linear Rec. 2020 color, scene-referred (Rec. 2020 OETF).
+/// `r`, `g`, `b`: gamma-encoded in [0, 1]
 pub fn Rec2020Scene(comptime T: type) type {
     validation.assertFloatType(T);
 
@@ -215,6 +217,7 @@ pub fn Rec2020Scene(comptime T: type) type {
 }
 
 /// Linearized Rec. 2020 color.
+/// `r`, `g`, `b`: linear light in [0, 1]
 pub fn LinearRec2020(comptime T: type) type {
     validation.assertFloatType(T);
 

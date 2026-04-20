@@ -7,7 +7,10 @@ const color_formatter = @import("../../color_formatter.zig");
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("cie_xyz.zig").CieXyz;
 
-/// CIE Yxy color: luma in [0,1], x and y chromaticity in [0,1].
+/// CIE Yxy color.
+/// `luma`: luminance in [0, 1]
+/// `x`: chromaticity-x in [0, 1]
+/// `y`: chromaticity-y in [0, 1]
 pub fn CieYxy(comptime T: type) type {
     assertFloatType(T);
 

@@ -91,8 +91,7 @@ pub fn build(b: *std.Build) !void {
 
     // Nuke step
     const nuke_step = b.step("nuke", "Remove all build artifacts and cache");
-    nuke_step.dependOn(&b.addRemoveDirTree(b.path(".zig-cache")).step);
-    nuke_step.dependOn(&b.addRemoveDirTree(b.path("zig-out")).step);
+    nuke_step.dependOn(&b.addSystemCommand(&.{ "rm", "-rf", ".zig-cache", "zig-out" }).step);
 
     const check_step = b.step("check", "Check if libchroma compiles");
     check_step.dependOn(&exe.step);
@@ -116,10 +115,13 @@ fn incrementBuildNumber(b: *std.Build) !std.SemanticVersion {
     const new_manifest = try std.mem.concat(alloc, u8, &.{ manifest[0..range.start], new_version, manifest[range.end..] });
 
     // Write new contents to the manifest file
-    var file = try std.fs.Dir.openFile(b.build_root.handle, "build.zig.zon", .{ .mode = .write_only });
-    defer file.close();
-    try file.seekTo(0);
-    try file.writeAll(new_manifest);
+    const io = b.graph.io;
+    var file = try b.build_root.handle.openFile(io, "build.zig.zon", .{ .mode = .write_only });
+    defer file.close(io);
+    var buf: [4096]u8 = undefined;
+    var w = file.writer(io, &buf);
+    try w.interface.writeAll(new_manifest);
+    try w.interface.flush();
 
     // Return the version as a std.SemanticVersion value
     return std.SemanticVersion.parse(new_version);

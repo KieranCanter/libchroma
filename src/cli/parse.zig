@@ -2,6 +2,7 @@ const std = @import("std");
 const lib = @import("libchroma");
 const fmt = @import("format.zig");
 
+/// Errors returned when a color string cannot be parsed.
 pub const ParseError = error{
     InvalidHexFormat,
     InvalidFuncFormat,
@@ -10,6 +11,7 @@ pub const ParseError = error{
     UnknownSpace,
 };
 
+/// A parsed color with optional alpha value.
 pub const ParseResult = struct {
     color: lib.Color,
     alpha: ?f32 = null,

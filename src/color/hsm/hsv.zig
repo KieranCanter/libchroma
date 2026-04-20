@@ -9,7 +9,10 @@ const Hwb = @import("hwb.zig").Hwb;
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// HSV color: h in [0,360] or null, s and v in [0,1].
+/// HSV color.
+/// `h`: hue in [0, 360] or `null` when achromatic
+/// `s`: saturation in [0, 1]
+/// `v`: value in [0, 1]
 pub fn Hsv(comptime T: type) type {
     assertFloatType(T);
 

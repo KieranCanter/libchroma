@@ -29,6 +29,7 @@ const cspace_values: [n_spaces]c_int = blk: {
     break :blk result;
 };
 
+/// C-compatible color space enum matching the internal `Space`.
 pub const CSpace = @Enum(c_int, .exhaustive, &cspace_names, &cspace_values);
 
 fn toInternalSpace(s: CSpace) color.Space {
@@ -75,11 +76,13 @@ const no_attrs: [n_spaces]std.builtin.Type.UnionField.Attributes = @splat(.{});
 
 const CColorData = @Union(.@"extern", null, &cspace_names, &ccolordata_types, &no_attrs);
 
+/// C-compatible color tagged union matching internal `Color`.
 pub const CColor = extern struct {
     space: CSpace,
     data: CColorData,
 };
 
+/// C-compatible color with alpha channel matching internal `AlphaColor`.
 pub const CAlphaColor = extern struct {
     color: CColor,
     alpha: f32,
@@ -135,6 +138,7 @@ fn pack(ic: color.Color, dst: CSpace) CColor {
 
 // Exported functions
 
+/// Convert a color to a different color space.
 export fn chroma_convert(src: CColor, dst_space: CSpace) CColor {
     const internal = unpack(src);
     const target = toInternalSpace(dst_space);
@@ -142,6 +146,7 @@ export fn chroma_convert(src: CColor, dst_space: CSpace) CColor {
     return pack(result, dst_space);
 }
 
+/// Check whether a color is within the gamut of the given space.
 export fn chroma_is_in_gamut(src: CColor, gamut_space: CSpace) bool {
     const xyz = color.toCieXyz(unpack(src));
     return switch (gamut_space) {
@@ -156,6 +161,7 @@ export fn chroma_is_in_gamut(src: CColor, gamut_space: CSpace) bool {
     };
 }
 
+/// Map a color into the gamut of target_space via OKLCH chroma reduction.
 export fn chroma_gamut_map(src: CColor, target_space: CSpace) CColor {
     const xyz = color.toCieXyz(unpack(src));
     const internal_space = toInternalSpace(target_space);
@@ -178,6 +184,8 @@ fn fieldCount(space: CSpace) usize {
     };
 }
 
+/// Create a `CColor` from a space and a pointer to float channel values.
+/// The number of floats passed in `vals` should equal the number of fields in `space`.
 export fn chroma_init(space: CSpace, vals: [*]const f32) CColor {
     var c = CColor{ .space = space, .data = undefined };
     const dst: [*]f32 = @ptrCast(&c.data);
@@ -186,22 +194,29 @@ export fn chroma_init(space: CSpace, vals: [*]const f32) CColor {
     return c;
 }
 
-export fn chroma_unpack(c: CColor, vals: [*]f32) c_int {
-    const src: [*]const f32 = @ptrCast(&c.data);
-    const n = fieldCount(c.space);
+/// Copy channel values out of a `CColor` into a float buffer; returns channel count.
+/// The size of `vals` should equal the number of fields in `clr`.
+export fn chroma_unpack(clr: CColor, vals: [*]f32) c_int {
+    const src: [*]const f32 = @ptrCast(&clr.data);
+    const n = fieldCount(clr.space);
     @memcpy(vals[0..n], src[0..n]);
     return @intCast(n);
 }
 
+/// Create a `CAlphaColor` from a space, channel values, and alpha.
+/// The number of floats passed in `vals` should equal the number of fields in `space`.
 export fn chroma_init_alpha(space: CSpace, vals: [*]const f32, alpha: f32) CAlphaColor {
     return .{ .color = chroma_init(space, vals), .alpha = alpha };
 }
 
-export fn chroma_unpack_alpha(c: CAlphaColor, vals: [*]f32, alpha: *f32) c_int {
-    alpha.* = c.alpha;
-    return chroma_unpack(c.color, vals);
+/// Unpack a CAlphaColor into channel values and alpha; returns channel count.
+/// The size of `vals` should equal the number of fields in `aclr.color`.
+export fn chroma_unpack_alpha(aclr: CAlphaColor, vals: [*]f32, alpha: *f32) c_int {
+    alpha.* = aclr.alpha;
+    return chroma_unpack(aclr.color, vals);
 }
 
+/// Create an sRGB `CColor` from 8-bit r/g/b values.
 export fn chroma_init_srgb8(r: u8, g: u8, b: u8) CColor {
     return .{ .space = .srgb, .data = .{ .srgb = .{
         .r = @as(f32, @floatFromInt(r)) / 255.0,
@@ -210,21 +225,51 @@ export fn chroma_init_srgb8(r: u8, g: u8, b: u8) CColor {
     } } };
 }
 
-export fn chroma_unpack_srgb8(c: CColor, r: *u8, g: *u8, b: *u8) void {
-    const srgb = color.convert(unpack(c), .srgb).srgb;
+/// Convert any `CColor` to sRGB and write out 8-bit r/g/b values.
+export fn chroma_unpack_srgb8(clr: CColor, r: *u8, g: *u8, b: *u8) void {
+    const srgb = color.convert(unpack(clr), .srgb).srgb;
     r.* = @intFromFloat(@round(srgb.r * 255));
     g.* = @intFromFloat(@round(srgb.g * 255));
     b.* = @intFromFloat(@round(srgb.b * 255));
 }
 
+/// Create an sRGB `CColor` from a 24-bit hex value (0xRRGGBB).
 export fn chroma_init_hex(hex: u32) CColor {
     const srgb = lib.Srgb(f32).initFromHex(@truncate(hex));
     return .{ .space = .srgb, .data = .{ .srgb = .{ .r = srgb.r, .g = srgb.g, .b = srgb.b } } };
 }
 
-export fn chroma_unpack_hex(c: CColor) u32 {
-    const srgb = color.convert(unpack(c), .srgb).srgb;
+/// Convert any `CColor` to sRGB and return a 24-bit hex value.
+/// The most significant 8 bits are guaranteed to be 0.
+export fn chroma_unpack_hex(clr: CColor) u32 {
+    const srgb = color.convert(unpack(clr), .srgb).srgb;
     return lib.Srgb(f32).init(srgb.r, srgb.g, srgb.b).toHex();
+}
+
+/// Create an sRGBA color from 8-bit r/g/b/a values.
+export fn chroma_init_srgba8(r: u8, g: u8, b: u8, a: u8) CAlphaColor {
+    return .{ .color = chroma_init_srgb8(r, g, b), .alpha = @as(f32, @floatFromInt(a)) / 255.0 };
+}
+
+/// Convert any `CAlphaColor` to sRGBA and write out 8-bit r/g/b/a values.
+export fn chroma_unpack_srgba8(aclr: CAlphaColor, r: *u8, g: *u8, b: *u8, a: *u8) void {
+    chroma_unpack_srgb8(aclr.color, r, g, b);
+    a.* = @intFromFloat(@round(aclr.alpha * 255));
+}
+
+/// Create an sRGB alpha color from a 32-bit hex alpha value (0xRRGGBBAA).
+export fn chroma_init_hexa(rgba: u32) CAlphaColor {
+    return .{
+        .color = chroma_init_hex(rgba >> 8),
+        .alpha = @as(f32, @floatFromInt(rgba & 0xFF)) / 255.0,
+    };
+}
+
+/// Convert any `CAlphaColor` to sRGB and return a 32-bit 0xRRGGBBAA value.
+export fn chroma_unpack_hexa(aclr: CAlphaColor) u32 {
+    const rgb = chroma_unpack_hex(aclr.color);
+    const a: u8 = @intFromFloat(@round(aclr.alpha * 255));
+    return (rgb << 8) | a;
 }
 
 // Tests
@@ -330,6 +375,27 @@ test "chroma_unpack_hex with conversion" {
     const oklch = chroma_convert(c, .oklch);
     const hex = chroma_unpack_hex(oklch);
     try std.testing.expectEqual(@as(u32, 0xC86432), hex);
+}
+
+test "chroma_init_srgba8 and chroma_unpack_srgba8" {
+    const c = chroma_init_srgba8(200, 100, 50, 128);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.502), c.alpha, 0.005);
+    var r: u8 = undefined;
+    var g: u8 = undefined;
+    var b: u8 = undefined;
+    var a: u8 = undefined;
+    chroma_unpack_srgba8(c, &r, &g, &b, &a);
+    try std.testing.expectEqual(@as(u8, 200), r);
+    try std.testing.expectEqual(@as(u8, 100), g);
+    try std.testing.expectEqual(@as(u8, 50), b);
+    try std.testing.expectEqual(@as(u8, 128), a);
+}
+
+test "chroma_init_hexa and chroma_unpack_hexa" {
+    const c = chroma_init_hexa(0xC8643280);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.784), c.color.data.srgb.r, 0.002);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.502), c.alpha, 0.005);
+    try std.testing.expectEqual(@as(u32, 0xC8643280), chroma_unpack_hexa(c));
 }
 
 test "chroma_is_in_gamut srgb color in srgb" {

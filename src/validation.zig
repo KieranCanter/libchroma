@@ -4,7 +4,7 @@ const CieXyz = @import("color/xyz/cie_xyz.zig").CieXyz;
 
 const alpha = @import("color/alpha.zig");
 
-// Requires toCieXyz, fromCieXyz, and Backing.
+/// Comptime check that T implements the color interface (toCieXyz, fromCieXyz, Backing).
 pub inline fn assertColorInterface(comptime T: type) void {
     comptime {
         if (alpha.isAlpha(T)) {
@@ -25,6 +25,7 @@ pub inline fn assertColorInterface(comptime T: type) void {
     }
 }
 
+/// Comptime assert that T is u8 or a float type.
 pub inline fn assertRgbType(comptime T: type) void {
     comptime switch (@typeInfo(T)) {
         .int => {
@@ -39,6 +40,7 @@ pub inline fn assertRgbType(comptime T: type) void {
     };
 }
 
+/// Comptime assert that T is a float type.
 pub inline fn assertFloatType(comptime T: type) void {
     comptime switch (@typeInfo(T)) {
         .float => return,
@@ -46,7 +48,7 @@ pub inline fn assertFloatType(comptime T: type) void {
     };
 }
 
-// u8 -> f32, float -> itself
+/// Maps u8 -> f32, passes float types through unchanged.
 pub inline fn rgbToFloatType(comptime T: type) type {
     return switch (@typeInfo(T)) {
         .float => T,
@@ -55,6 +57,7 @@ pub inline fn rgbToFloatType(comptime T: type) type {
     };
 }
 
+/// Extract a short human-readable name from a color space type at comptime.
 pub inline fn colorSpaceName(comptime T: type) []const u8 {
     comptime {
         const maybe_last_dot = std.mem.lastIndexOfScalar(u8, @typeName(T), '.');

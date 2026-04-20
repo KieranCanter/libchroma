@@ -37,7 +37,10 @@ const M2_INV: [3][3]f64 = .{
     .{ 1.0000000000, -0.0894841775, -1.2914855480 },
 };
 
-/// OKLab color, perceptually uniform, by Bjorn Ottosson. l in [0,1], a/b roughly [-0.4, 0.4].
+/// OKLab color, perceptually uniform.
+/// `l`: perceived lightness in [0, 1]
+/// `a`: green-red axis, roughly [-0.4, 0.4]
+/// `b`: blue-yellow axis, roughly [-0.4, 0.4]
 pub fn Oklab(comptime T: type) type {
     assertFloatType(T);
 

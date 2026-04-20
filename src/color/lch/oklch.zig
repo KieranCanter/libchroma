@@ -5,7 +5,10 @@ const color_formatter = @import("../../color_formatter.zig");
 const Oklab = @import("../lab/oklab.zig").Oklab;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// OKLCH color, the cylindrical form of OKLab. l in [0,1], c in [0,~0.4], h in [0,360) or null.
+/// OKLCH color, cylindrical form of OKLab.
+/// `l`: perceived lightness in [0, 1]
+/// `c`: chroma in [0, ~0.4]
+/// `h`: hue in [0, 360) or `null` when achromatic
 pub fn Oklch(comptime T: type) type {
     assertFloatType(T);
 

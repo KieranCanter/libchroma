@@ -27,8 +27,10 @@ const XYZ_TO_SRGB: [3][3]f32 = .{
     .{ 0.05563007969699366, -0.20397695888897652, 1.0569715142428786 },
 };
 
-/// Non-linear sRGB color. The standard RGB for digital displays (~35.9% of CIE 1931).
-/// For wider gamuts, see DisplayP3 or Rec2020.
+/// Non-linear sRGB color (~35.9% of CIE 1931).
+/// `r`: red in [0, 1] (or [0, 255] for `u8`)
+/// `g`: green in [0, 1] (or [0, 255] for `u8`)
+/// `b`: blue in [0, 1] (or [0, 255] for `u8`)
 pub fn Srgb(comptime T: type) type {
     validation.assertRgbType(T);
 
@@ -154,6 +156,7 @@ pub fn Srgb(comptime T: type) type {
 }
 
 /// Linearized sRGB color.
+/// `r`, `g`, `b`: linear light in [0, 1]
 pub fn LinearSrgb(comptime T: type) type {
     validation.assertFloatType(T);
 

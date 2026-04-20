@@ -3,10 +3,10 @@ const lib = @import("libchroma");
 const Action = @import("action.zig").Action;
 const fmt = @import("format.zig");
 
-pub fn main() u8 {
-    run() catch |err| {
+pub fn main(init: std.process.Init) u8 {
+    run(init) catch |err| {
         var buf: [256]u8 = undefined;
-        var w = std.fs.File.stderr().writer(&buf);
+        var w = std.Io.File.stderr().writer(init.io, &buf);
         const stderr = &w.interface;
         stderr.print("Error: {s}\n", .{@errorName(err)}) catch {};
         stderr.flush() catch {};
@@ -15,37 +15,33 @@ pub fn main() u8 {
     return 0;
 }
 
-fn run() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
-
-    var args = try std.process.argsWithAllocator(alloc);
-    defer args.deinit();
+fn run(init: std.process.Init) !void {
+    const alloc = init.gpa;
+    var args = init.minimal.args.iterate();
     _ = args.skip(); // program name
 
     const cmd = args.next();
 
     if (cmd == null) {
-        printUsage(std.fs.File.stderr());
+        printUsage(init.io, std.Io.File.stderr());
         return;
     }
 
     if (std.mem.eql(u8, cmd.?, "--help") or std.mem.eql(u8, cmd.?, "-h")) {
-        printUsage(std.fs.File.stdout());
+        printUsage(init.io, std.Io.File.stdout());
         return;
     }
 
     if (std.meta.stringToEnum(Action, cmd.?)) |action| {
-        return action.run(alloc, &args);
+        return action.run(alloc, init.io, &args);
     }
 
-    printUsage(std.fs.File.stderr());
+    printUsage(init.io, std.Io.File.stderr());
 }
 
-fn printUsage(file: std.fs.File) void {
+fn printUsage(io: std.Io, file: std.Io.File) void {
     var buf: [4096]u8 = undefined;
-    var w = file.writer(&buf);
+    var w = file.writer(io, &buf);
     const out = &w.interface;
     out.print(
         \\Usage: chroma <command> [args]

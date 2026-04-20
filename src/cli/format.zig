@@ -3,6 +3,7 @@ const lib = @import("libchroma");
 
 const Writer = std.Io.Writer;
 
+/// Output formatting options for the CLI.
 pub const Options = struct {
     precision: u8 = 2,
     json: bool = false,
@@ -57,23 +58,23 @@ pub fn formatColor(color: lib.Color, opts: Options, w: *Writer) Writer.Error!voi
 }
 
 /// Format comma-separated values of a color struct.
-pub fn formatValues(c: anytype, opts: Options, w: *Writer) Writer.Error!void {
-    const fields = @typeInfo(@TypeOf(c)).@"struct".fields;
+pub fn formatValues(color: anytype, opts: Options, w: *Writer) Writer.Error!void {
+    const fields = @typeInfo(@TypeOf(color)).@"struct".fields;
     inline for (fields, 0..) |f, i| {
         if (i > 0) try w.writeAll(", ");
-        try formatField(@field(c, f.name), f.type, opts, w);
+        try formatField(@field(color, f.name), f.type, opts, w);
     }
 }
 
 /// Format a single Color as JSON.
-pub fn formatColorJson(c: lib.Color, alpha: ?f32, opts: Options, w: *Writer) Writer.Error!void {
-    switch (c) {
-        inline else => |v, tag| {
+pub fn formatColorJson(color: lib.Color, alpha: ?f32, opts: Options, w: *Writer) Writer.Error!void {
+    switch (color) {
+        inline else => |val, tag| {
             try w.print("{{\"space\":\"{s}\"", .{comptime spaceCliName(tag)});
-            const fields = @typeInfo(@TypeOf(v)).@"struct".fields;
-            inline for (fields) |f| {
-                try w.print(",\"{s}\":", .{f.name});
-                try formatFieldJson(@field(v, f.name), f.type, opts, w);
+            const fields = @typeInfo(@TypeOf(val)).@"struct".fields;
+            inline for (fields) |field| {
+                try w.print(",\"{s}\":", .{field.name});
+                try formatFieldJson(@field(val, field.name), field.type, opts, w);
             }
             if (alpha) |a| {
                 try w.writeAll(",\"alpha\":");
@@ -146,6 +147,7 @@ fn formatFieldJson(val: anytype, comptime T: type, opts: Options, w: *Writer) Wr
     }
 }
 
+/// Write a float rounded to the given decimal precision.
 pub fn formatFloat(val: f32, precision: u8, w: *Writer) Writer.Error!void {
     var rounded = @round(val * p10(precision)) / p10(precision);
     // Eliminate negative zero
@@ -153,6 +155,7 @@ pub fn formatFloat(val: f32, precision: u8, w: *Writer) Writer.Error!void {
     try w.print("{d}", .{rounded});
 }
 
+/// Returns 10^n as f32.
 pub fn p10(n: u8) f32 {
     var result: f32 = 1;
     for (0..n) |_| result *= 10;

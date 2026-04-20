@@ -5,6 +5,7 @@ const action = @import("action.zig");
 const fmt = @import("format.zig");
 const parse = @import("parse.zig");
 
+/// Help text printed for the convert subcommand.
 pub const help =
     \\Convert a color to a target color space.
     \\
@@ -15,22 +16,22 @@ pub const help =
     \\  --json             Output as JSON
     \\
     \\Color formats:
-    \\  #RRGGBB            Hex with hash
-    \\  RRGGBB             Hex without hash
+    \\  #RRGGBB            Hex with or without hash
     \\  rgb(r, g, b)       RGB with values 0-255 (auto-detected) or 0-1
     \\  space(v1, v2, v3)  Any supported color space
     \\
     \\Example:
     \\  chroma convert "#C86432" oklch
-    \\  chroma convert "#C86432" oklch --json
-    \\  chroma convert "#C86432" oklch --precision 4
+    \\  chroma convert "rgb(50, 150 250)" oklch --json
+    \\  chroma convert "lab(0.2, 0.5, 0.7)" hsv --precision 4
     \\
 ;
 
-pub fn run(alloc: Allocator, args: *std.process.ArgIterator) !void {
+/// Parse args and convert a color to the requested space, writing to stdout.
+pub fn run(alloc: Allocator, io: std.Io, args: *std.process.Args.Iterator) !void {
     _ = alloc;
     var out_buf: [4096]u8 = undefined;
-    var out_w = std.fs.File.stdout().writer(&out_buf);
+    var out_w = std.Io.File.stdout().writer(io, &out_buf);
     const out = &out_w.interface;
 
     var opts = fmt.Options{};

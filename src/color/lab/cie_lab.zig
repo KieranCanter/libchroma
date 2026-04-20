@@ -1,16 +1,19 @@
 const std = @import("std");
 const assertFloatType = @import("../../validation.zig").assertFloatType;
 const color_formatter = @import("../../color_formatter.zig");
-const white_point = @import("../white_point.zig");
+const WhitePoint = @import("../WhitePoint.zig");
 
 const CieLch = @import("../lch/cie_lch.zig").CieLch;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// CIE L*a*b* color (D65, 2° observer). l in [0,100], a/b roughly [-128, 127].
+/// CIE L*a*b* color (D65 white point).
+/// `l`: lightness in [0, 100]
+/// `a`: green-red axis, roughly [-128, 127]
+/// `b`: blue-yellow axis, roughly [-128, 127]
 pub fn CieLab(comptime T: type) type {
     assertFloatType(T);
 
-    const wp = white_point.d65;
+    const wp = WhitePoint.d65;
     const epsilon: T = 216.0 / 24389.0; // CIE standard threshold
     const kappa: T = 24389.0 / 27.0; // CIE standard coefficient
 

@@ -9,6 +9,7 @@ const SpaceSet = std.EnumSet(lib.Space);
 
 const FilterMode = enum { none, show, hide };
 
+/// Help text printed for the info subcommand.
 pub const help =
     \\Show a color in all supported color spaces.
     \\
@@ -34,11 +35,12 @@ pub const help =
     \\
 ;
 
-pub fn run(alloc: Allocator, args: *std.process.ArgIterator) !void {
+/// Parse args and display a color in all (or filtered) spaces to stdout.
+pub fn run(alloc: Allocator, io: std.Io, args: *std.process.Args.Iterator) !void {
     @setEvalBranchQuota(10_000);
     _ = alloc;
     var out_buf: [8192]u8 = undefined;
-    var out_w = std.fs.File.stdout().writer(&out_buf);
+    var out_w = std.Io.File.stdout().writer(io, &out_buf);
     const out = &out_w.interface;
 
     var opts = fmt.Options{};

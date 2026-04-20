@@ -2,7 +2,10 @@ const std = @import("std");
 const assertFloatType = @import("../../validation.zig").assertFloatType;
 const color_formatter = @import("../../color_formatter.zig");
 
-/// CIE XYZ color, the central interchange space for cross-color-space conversions.
+/// CIE XYZ color, the central interchange space.
+/// `x`: mix of CIE RGB curves in [0, inf)
+/// `y`: luminance in [0, inf)
+/// `z`: quasi-blue in [0, inf)
 pub fn CieXyz(comptime T: type) type {
     assertFloatType(T);
 

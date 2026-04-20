@@ -8,7 +8,10 @@ const Hsv = @import("hsv.zig").Hsv;
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// HSL color: h in [0,360] or null, s and l in [0,1].
+/// HSL color.
+/// `h`: hue in [0, 360] or `null` when achromatic
+/// `s`: saturation in [0, 1]
+/// `l`: lightness in [0, 1]
 pub fn Hsl(comptime T: type) type {
     assertFloatType(T);
 

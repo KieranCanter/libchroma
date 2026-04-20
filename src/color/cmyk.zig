@@ -7,7 +7,11 @@ const Srgb = @import("rgb/srgb.zig").Srgb;
 const CieXyz = @import("xyz/cie_xyz.zig").CieXyz;
 const CmykError = error{OutOfRange};
 
-/// CMYK color: c, m, y, k all in [0, 1].
+/// CMYK color.
+/// `c`: cyan in [0, 1]
+/// `m`: magenta in [0, 1]
+/// `y`: yellow in [0, 1]
+/// `k`: black in [0, 1]
 pub fn Cmyk(comptime T: type) type {
     validation.assertFloatType(T);
 

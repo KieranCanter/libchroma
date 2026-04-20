@@ -2,10 +2,12 @@ const std = @import("std");
 const validation = @import("../validation.zig");
 const color_formatter = @import("../color_formatter.zig");
 
+/// Returns true if T is an Alpha-wrapped color type.
 pub inline fn isAlpha(comptime T: type) bool {
     return @hasDecl(T, "Inner") and T == Alpha(T.Inner);
 }
 
+/// Wraps any color type with an alpha channel.
 pub fn Alpha(comptime ColorType: type) type {
     validation.assertColorInterface(ColorType);
 

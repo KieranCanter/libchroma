@@ -114,6 +114,18 @@ chroma_color_t chroma_init_srgb8(uint8_t r, uint8_t g, uint8_t b);
 /* Extract 0-255 u8 sRGB values, converting if needed. */
 void chroma_unpack_srgb8(chroma_color_t c, uint8_t *r, uint8_t *g, uint8_t *b);
 
+/* Construct sRGB+alpha from 0-255 u8 values. */
+chroma_alpha_color_t chroma_init_srgba8(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
+/* Extract 0-255 u8 sRGBA values, converting if needed. */
+void chroma_unpack_srgba8(chroma_alpha_color_t c, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *a);
+
+/* Construct sRGB+alpha from a 32-bit 0xRRGGBBAA value. */
+chroma_alpha_color_t chroma_init_hexa(uint32_t rgba);
+
+/* Extract a 32-bit 0xRRGGBBAA value, converting to sRGB if needed. */
+uint32_t chroma_unpack_hexa(chroma_alpha_color_t c);
+
 /* Check if a hue is null (achromatic). */
 static inline int chroma_hue_is_null(float h) {
     return __builtin_isnan(h);

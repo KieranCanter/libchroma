@@ -8,7 +8,10 @@ const Hsv = @import("hsv.zig").Hsv;
 const Srgb = @import("../rgb/srgb.zig").Srgb;
 const CieXyz = @import("../xyz/cie_xyz.zig").CieXyz;
 
-/// HWB color: h in [0,360] or null, w and b in [0,1].
+/// HWB color.
+/// `h`: hue in [0, 360] or `null` when achromatic
+/// `w`: whiteness in [0, 1]
+/// `b`: blackness in [0, 1]
 pub fn Hwb(comptime T: type) type {
     assertFloatType(T);
 
