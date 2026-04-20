@@ -147,20 +147,41 @@ pub fn withAlpha(c: Color, a: f32) AlphaColor {
     return .{ .color = c, .a = a };
 }
 
-/// Write a human-readable representation of a Color or AlphaColor.
-pub fn format(src: anytype, writer: *std.Io.Writer) std.Io.Writer.Error!void {
-    switch (@TypeOf(src)) {
-        Color => switch (src) {
-            inline else => |c| try c.format(writer),
+/// Return the struct field names for a given color space.
+pub fn fieldNames(space: Space) []const []const u8 {
+    const union_fields = @typeInfo(Color).@"union".fields;
+    return switch (space) {
+        inline else => |tag| comptime blk: {
+            const T = union_fields[@intFromEnum(tag)].type;
+            const sf = @typeInfo(T).@"struct".fields;
+            var names: [sf.len][]const u8 = undefined;
+            for (sf, 0..) |f, i| names[i] = f.name;
+            const final = names;
+            break :blk &final;
         },
-        AlphaColor => {
-            switch (src.color) {
-                inline else => |c| try c.format(writer),
-            }
-            try writer.print(", {d}", .{src.a});
-        },
-        else => @compileError("expected Color or AlphaColor"),
+    };
+}
+
+/// Wrapper that implements the std.Io.Writer format interface for use with print's {%f} specifier.
+pub const Fmt = struct {
+    color: Color,
+    alpha: ?f32 = null,
+
+    pub fn format(self: Fmt, w: *std.Io.Writer) std.Io.Writer.Error!void {
+        switch (self.color) {
+            inline else => |c| try c.format(w),
+        }
+        if (self.alpha) |a| try w.print(", {d}", .{a});
     }
+};
+
+/// Return a Fmt wrapper for use with print: `try out.print("{f}\n", .{color.formatter(c)});`
+pub fn formatter(src: anytype) Fmt {
+    return switch (@TypeOf(src)) {
+        Color => .{ .color = src },
+        AlphaColor => .{ .color = src.color, .alpha = src.a },
+        else => @compileError("expected Color or AlphaColor"),
+    };
 }
 
 // Comptime helpers for type name extraction
@@ -250,19 +271,19 @@ test "toCieXyz and fromCieXyz round-trip" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.2), back.srgb.b, 0.002);
 }
 
-test "format Color" {
+test "formatter Color" {
     var buf: [256]u8 = undefined;
     var w = std.Io.Writer.fixed(&buf);
     const c = Color{ .srgb = Srgb(f32).init(0.5, 0.3, 0.1) };
-    try format(c, &w);
+    try w.print("{f}", .{formatter(c)});
     try std.testing.expect(w.end > 0);
 }
 
-test "format AlphaColor includes alpha" {
+test "formatter AlphaColor includes alpha" {
     var buf: [256]u8 = undefined;
     var w = std.Io.Writer.fixed(&buf);
     const ac = withAlpha(.{ .srgb = Srgb(f32).init(0.5, 0.3, 0.1) }, 0.75);
-    try format(ac, &w);
+    try w.print("{f}", .{formatter(ac)});
     const out = buf[0..w.end];
     try std.testing.expect(std.mem.indexOf(u8, out, "0.75") != null);
 }

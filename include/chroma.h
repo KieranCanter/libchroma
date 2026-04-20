@@ -165,29 +165,44 @@ typedef struct {
     float h;
 } chroma_lch_t;
 
+/* Per-space type aliases */
+typedef chroma_xyz_t chroma_cie_xyz_t;
+typedef chroma_yxy_t chroma_cie_yxy_t;
+typedef chroma_rgb_t chroma_srgb_t;
+typedef chroma_rgb_t chroma_linear_srgb_t;
+typedef chroma_rgb_t chroma_display_p3_t;
+typedef chroma_rgb_t chroma_linear_display_p3_t;
+typedef chroma_rgb_t chroma_rec2020_t;
+typedef chroma_rgb_t chroma_rec2020scene_t;
+typedef chroma_rgb_t chroma_linear_rec2020_t;
+typedef chroma_lab_t chroma_cie_lab_t;
+typedef chroma_lch_t chroma_cie_lch_t;
+typedef chroma_lab_t chroma_oklab_t;
+typedef chroma_lch_t chroma_oklch_t;
+
 /*
  * Color data union
  * Access the field matching the color's space tag. Reading the wrong field is undefined behavior.
  */
 typedef union {
-    chroma_xyz_t cie_xyz;
-    chroma_yxy_t cie_yxy;
-    chroma_rgb_t srgb;
-    chroma_rgb_t linear_srgb;
-    chroma_rgb_t display_p3;
-    chroma_rgb_t linear_display_p3;
-    chroma_rgb_t rec2020;
-    chroma_rgb_t rec2020scene;
-    chroma_rgb_t linear_rec2020;
+    chroma_cie_xyz_t cie_xyz;
+    chroma_cie_yxy_t cie_yxy;
+    chroma_srgb_t srgb;
+    chroma_linear_srgb_t linear_srgb;
+    chroma_display_p3_t display_p3;
+    chroma_linear_display_p3_t linear_display_p3;
+    chroma_rec2020_t rec2020;
+    chroma_rec2020scene_t rec2020scene;
+    chroma_linear_rec2020_t linear_rec2020;
     chroma_hsl_t hsl;
     chroma_hsv_t hsv;
     chroma_hsi_t hsi;
     chroma_hwb_t hwb;
     chroma_cmyk_t cmyk;
-    chroma_lab_t cie_lab;
-    chroma_lch_t cie_lch;
-    chroma_lab_t oklab;
-    chroma_lch_t oklch;
+    chroma_cie_lab_t cie_lab;
+    chroma_cie_lch_t cie_lch;
+    chroma_oklab_t oklab;
+    chroma_oklch_t oklch;
 } chroma_color_data_t;
 
 /* A color tagged union: space tag + channel data. */
@@ -218,6 +233,22 @@ bool chroma_is_in_gamut(chroma_color_t src, chroma_space_t gamut);
 
 /* Map `src` into gamut of `target` via OKLCH chroma reduction (CSS Color Level 4). `target` must be an RGB space. */
 chroma_color_t chroma_gamut_map(chroma_color_t src, chroma_space_t target);
+
+/*
+ * Meta utilities
+ */
+
+/* Parse a space name into a `chroma_space_t`. Returns -1 if unknown. */
+int chroma_space_from_name(const char *name);
+
+/* Return the number of supported color spaces. */
+int chroma_space_count();
+
+/* Return the name of a color space by index (0 to chroma_space_count()-1), or NULL if out of range. */
+const char *chroma_space_name(int index);
+
+/* Return the number of channel fields for a space (3 or 4). */
+int chroma_field_count(chroma_space_t space);
 
 /*
  * Generic init / unpack

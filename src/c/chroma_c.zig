@@ -184,6 +184,45 @@ fn fieldCount(space: CSpace) usize {
     };
 }
 
+/// Return the number of supported color spaces.
+export fn chroma_space_count() c_int {
+    return n_spaces;
+}
+
+/// Return the name of a color space by index (0 to chroma_space_count()-1), or NULL if out of range.
+export fn chroma_space_name(index: c_int) ?[*:0]const u8 {
+    if (index < 0 or index >= n_spaces) return null;
+    const space: CSpace = @enumFromInt(@as(u8, @intCast(index)));
+    return @tagName(space);
+}
+
+/// Return the number of channel fields for a given space (3 or 4).
+export fn chroma_field_count(space: CSpace) c_int {
+    return @intCast(fieldCount(space));
+}
+
+/// Parse a space name string into a `CSpace` enum value. Returns -1 if unknown.
+/// Supports short aliases: xyz, yxy, lab, lch, rgb.
+export fn chroma_space_from_name(name: [*:0]const u8) c_int {
+    const slice = std.mem.sliceTo(name, 0);
+    const resolved = resolveAlias(slice);
+    return if (std.meta.stringToEnum(CSpace, resolved)) |s| @intFromEnum(s) else -1;
+}
+
+fn resolveAlias(name: []const u8) []const u8 {
+    const aliases = .{
+        .{ "xyz", "cie_xyz" },
+        .{ "yxy", "cie_yxy" },
+        .{ "lab", "cie_lab" },
+        .{ "lch", "cie_lch" },
+        .{ "rgb", "srgb" },
+    };
+    inline for (aliases) |pair| {
+        if (std.mem.eql(u8, name, pair[0])) return pair[1];
+    }
+    return name;
+}
+
 /// Create a `CColor` from a space and a pointer to float channel values.
 /// The number of floats passed in `vals` should equal the number of fields in `space`.
 export fn chroma_init(space: CSpace, vals: [*]const f32) CColor {
@@ -227,7 +266,7 @@ export fn chroma_init_srgb8(r: u8, g: u8, b: u8) CColor {
 
 /// Convert any `CColor` to sRGB and write out 8-bit r/g/b values.
 export fn chroma_unpack_srgb8(clr: CColor, r: *u8, g: *u8, b: *u8) void {
-    const srgb = color.convert(unpack(clr), .srgb).srgb;
+    const srgb = lib.gamut.gamutMap(color.toCieXyz(unpack(clr)), lib.Srgb(f32));
     r.* = @intFromFloat(@round(srgb.r * 255));
     g.* = @intFromFloat(@round(srgb.g * 255));
     b.* = @intFromFloat(@round(srgb.b * 255));
@@ -242,8 +281,8 @@ export fn chroma_init_hex(hex: u32) CColor {
 /// Convert any `CColor` to sRGB and return a 24-bit hex value.
 /// The most significant 8 bits are guaranteed to be 0.
 export fn chroma_unpack_hex(clr: CColor) u32 {
-    const srgb = color.convert(unpack(clr), .srgb).srgb;
-    return lib.Srgb(f32).init(srgb.r, srgb.g, srgb.b).toHex();
+    const srgb = lib.gamut.gamutMap(color.toCieXyz(unpack(clr)), lib.Srgb(f32));
+    return srgb.toHex();
 }
 
 /// Create an sRGBA color from 8-bit r/g/b/a values.

@@ -3,46 +3,86 @@ const std = @import("std");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const semver = try incrementBuildNumber(b);
 
-    // Library
     const lib_mod = b.addModule("libchroma", .{
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    const semver = try incrementBuildNumber(b);
+    const static_lib = addLibs(b, lib_mod, semver);
+    addCli(b, lib_mod, target, optimize);
+    addTests(b, lib_mod, target, optimize);
+    addExamples(b, lib_mod, static_lib, target, optimize);
 
-    // Static and dynamic library defs
-    const staticLib = b.addLibrary(.{
+    const nuke_step = b.step("nuke", "Remove all build artifacts and cache");
+    nuke_step.dependOn(&b.addSystemCommand(&.{ "rm", "-rf", ".zig-cache", "zig-out" }).step);
+}
+
+fn addLibs(b: *std.Build, lib_mod: *std.Build.Module, semver: std.SemanticVersion) *std.Build.Step.Compile {
+    const static_lib = b.addLibrary(.{
         .name = "chroma",
         .linkage = .static,
         .root_module = lib_mod,
         .version = semver,
     });
-    const dynLib = b.addLibrary(.{
+    const dynamic_lib = b.addLibrary(.{
         .name = "chroma",
         .linkage = .dynamic,
         .root_module = lib_mod,
         .version = semver,
     });
-    b.installArtifact(staticLib);
-    b.installArtifact(dynLib);
+    b.installArtifact(static_lib);
+    b.installArtifact(dynamic_lib);
     b.installDirectory(.{
         .source_dir = b.path("include"),
         .install_dir = .header,
         .install_subdir = "",
     });
 
-    // Build lib step
     const lib_step = b.step("lib", "Build only the library (static + dynamic)");
-    lib_step.dependOn(&staticLib.step);
-    lib_step.dependOn(&dynLib.step);
-    // Lib tests
-    const lib_tests = b.addTest(.{
-        .root_module = lib_mod,
+    lib_step.dependOn(&static_lib.step);
+    lib_step.dependOn(&dynamic_lib.step);
+
+    return static_lib;
+}
+
+fn addCli(
+    b: *std.Build,
+    lib_mod: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
+    const exe_mod = b.createModule(.{
+        .root_source_file = b.path("src/cli/main.zig"),
+        .target = target,
+        .optimize = optimize,
     });
-    // Translate chroma.h so the C ABI (chroma_c.zig) can use it in tests.
+    exe_mod.addImport("libchroma", lib_mod);
+    const exe = b.addExecutable(.{ .name = "chroma", .root_module = exe_mod });
+    b.installArtifact(exe);
+
+    const cli_step = b.step("cli", "Build only the CLI executable");
+    cli_step.dependOn(&exe.step);
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| run_cmd.addArgs(args);
+    const run_step = b.step("run", "Run the CLI");
+    run_step.dependOn(&run_cmd.step);
+
+    const check_step = b.step("check", "Check if libchroma compiles");
+    check_step.dependOn(&exe.step);
+}
+
+fn addTests(
+    b: *std.Build,
+    lib_mod: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
+    const lib_tests = b.addTest(.{ .root_module = lib_mod });
     const translate_c = b.addTranslateC(.{
         .root_source_file = b.path("include/chroma.h"),
         .target = target,
@@ -51,70 +91,71 @@ pub fn build(b: *std.Build) !void {
     lib_tests.root_module.addImport("chroma_h", translate_c.createModule());
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
-    // CLI executable
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/cli/main.zig"),
         .target = target,
         .optimize = optimize,
     });
     exe_mod.addImport("libchroma", lib_mod);
-    const exe = b.addExecutable(.{
-        .name = "chroma",
-        .root_module = exe_mod,
-    });
-    b.installArtifact(exe);
-
-    // Build CLI step
-    const cli_step = b.step("cli", "Build only the CLI executable");
-    cli_step.dependOn(&exe.step);
-    // CLI tests
-    const exe_tests = b.addTest(.{
-        .root_module = exe_mod,
-    });
+    const exe_tests = b.addTest(.{ .root_module = exe_mod });
     const run_exe_tests = b.addRunArtifact(exe_tests);
 
-    // Run exe step
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| run_cmd.addArgs(args);
-    const run_step = b.step("run", "Run the CLI");
-    run_step.dependOn(&run_cmd.step);
-
-    // Test step
-    const TestType = enum { lib, exe };
-    const test_type = b.option(TestType, "test", "Test module (leave blank for all)");
-    const test_step = b.step("test", "Run tests (-Dscope lib|exe)");
-    if (test_type == null or test_type.? == TestType.lib)
+    const Scope = enum { lib, exe };
+    const scope = b.option(Scope, "scope", "Test scope (leave blank for all)");
+    const test_step = b.step("test", "Run tests (-Dscope=lib|exe)");
+    if (scope == null or scope.? == .lib)
         test_step.dependOn(&run_lib_tests.step);
-    if (test_type == null or test_type.? == TestType.exe)
+    if (scope == null or scope.? == .exe)
         test_step.dependOn(&run_exe_tests.step);
+}
 
-    // Nuke step
-    const nuke_step = b.step("nuke", "Remove all build artifacts and cache");
-    nuke_step.dependOn(&b.addSystemCommand(&.{ "rm", "-rf", ".zig-cache", "zig-out" }).step);
+fn addExamples(
+    b: *std.Build,
+    lib_mod: *std.Build.Module,
+    static_lib: *std.Build.Step.Compile,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
+    const examples_step = b.step("examples", "Build examples (installs to zig-out/bin/)");
 
-    const check_step = b.step("check", "Check if libchroma compiles");
-    check_step.dependOn(&exe.step);
-    check_step.dependOn(&staticLib.step);
-    check_step.dependOn(&dynLib.step);
-    check_step.dependOn(&run_lib_tests.step);
+    // C examples
+    inline for (.{ "basic", "convert", "gamut_map" }) |name| {
+        const c_mod = b.createModule(.{
+            .root_source_file = null,
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+        c_mod.addCSourceFiles(.{ .files = &.{"examples/" ++ name ++ ".c"} });
+        c_mod.addIncludePath(b.path("include"));
+        c_mod.linkLibrary(static_lib);
+        const exe = b.addExecutable(.{ .name = name, .root_module = c_mod });
+        const install = b.addInstallArtifact(exe, .{ .dest_sub_path = "examples/" ++ name ++ "-c" });
+        examples_step.dependOn(&install.step);
+    }
+
+    // Zig examples
+    inline for (.{ "basic", "comptime", "palette" }) |name| {
+        const zig_mod = b.createModule(.{
+            .root_source_file = b.path("examples/" ++ name ++ ".zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        zig_mod.addImport("libchroma", lib_mod);
+        const exe = b.addExecutable(.{ .name = name, .root_module = zig_mod });
+        const install = b.addInstallArtifact(exe, .{ .dest_sub_path = "examples/" ++ name ++ "-zig" });
+        examples_step.dependOn(&install.step);
+    }
 }
 
 fn incrementBuildNumber(b: *std.Build) !std.SemanticVersion {
     const alloc = b.allocator;
-
-    // Load in manifest
     const manifest = @embedFile("build.zig.zon");
-
-    // Get the start and end indices of the semver string
     const range = try findVersion(manifest);
     const old_version = manifest[range.start..range.end];
-    // Increment the build number of the version
     const new_version = try bumpVersion(alloc, old_version);
-    // Concatenate new version with front and end of the manifest to replace old version
     const new_manifest = try std.mem.concat(alloc, u8, &.{ manifest[0..range.start], new_version, manifest[range.end..] });
 
-    // Write new contents to the manifest file
     const io = b.graph.io;
     var file = try b.build_root.handle.openFile(io, "build.zig.zon", .{ .mode = .write_only });
     defer file.close(io);
@@ -123,11 +164,10 @@ fn incrementBuildNumber(b: *std.Build) !std.SemanticVersion {
     try w.interface.writeAll(new_manifest);
     try w.interface.flush();
 
-    // Return the version as a std.SemanticVersion value
     return std.SemanticVersion.parse(new_version);
 }
 
-const field: *const [7:0]u8 = "version";
+const field = "version";
 fn findVersion(manifest: []const u8) !struct { start: usize, end: usize } {
     var i: usize = 0;
 
@@ -135,28 +175,18 @@ fn findVersion(manifest: []const u8) !struct { start: usize, end: usize } {
         if (!std.mem.eql(u8, manifest[i .. i + field.len], field)) continue;
 
         i += field.len;
-
         while (i < manifest.len and std.ascii.isWhitespace(manifest[i])) i += 1;
-
         if (i >= manifest.len or manifest[i] != '=') continue;
-
         i += 1;
-
         while (i < manifest.len and std.ascii.isWhitespace(manifest[i])) i += 1;
-
         if (i >= manifest.len or manifest[i] != '"') return error.MalformedVersion;
 
         const start = i + 1;
         i = start;
-
         while (i < manifest.len and manifest[i] != '"') i += 1;
-
         if (i >= manifest.len) return error.UnterminatedString;
 
-        return .{
-            .start = start,
-            .end = i,
-        };
+        return .{ .start = start, .end = i };
     }
 
     return error.VersionNotFound;
@@ -167,6 +197,5 @@ fn bumpVersion(alloc: std.mem.Allocator, old: []const u8) ![]u8 {
     const base = it.next() orelse return error.InvalidVersion;
     const build_str = it.next() orelse "0";
     const build_num = try std.fmt.parseInt(usize, build_str, 10) + 1;
-
     return std.fmt.allocPrint(alloc, "{s}+{d}", .{ base, build_num });
 }
