@@ -1,10 +1,9 @@
 .{
     .name = .libchroma,
-    .version = "1.0.0-rc.5+56",
+    .version = "1.0.0-rc.6+5",
     .fingerprint = 0xc0aa611402413c94,
     .minimum_zig_version = "0.16.0-dev.747+493ad58ff",
-    .dependencies = .{
-    },
+    .dependencies = .{},
     .paths = .{
         "build.zig",
         "build.zig.zon",

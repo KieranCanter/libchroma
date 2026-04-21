@@ -37,3 +37,6 @@ jobs:
 
       - name: Test
         run: zig build test
+
+      - name: Examples
+        run: zig build examples
