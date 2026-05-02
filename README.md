@@ -71,10 +71,10 @@ The easiest way to add libchroma is with `zig fetch`:
 
 ```bash
 # From a release tag
-zig fetch --save https://github.com/KieranCanter/libchroma/archive/refs/tags/<version-tag>.tar.gz
+zig fetch --save https://github.com/kicanter/libchroma/archive/refs/tags/<version-tag>.tar.gz
 
 # Or from a specific commit
-zig fetch --save https://github.com/KieranCanter/libchroma/archive/<commit-sha>.tar.gz
+zig fetch --save https://github.com/kicanter/libchroma/archive/<commit-sha>.tar.gz
 ```
 
 This writes the dependency (with the correct hash) into your `build.zig.zon` automatically.
@@ -84,7 +84,7 @@ Or add it manually to `build.zig.zon`:
 ```zig
 .dependencies = .{
     .libchroma = .{
-        .url = "https://github.com/KieranCanter/libchroma/archive/refs/tags/<version-tag>.tar.gz",
+        .url = "https://github.com/kicanter/libchroma/archive/refs/tags/<version-tag>.tar.gz",
         .hash = "...",
     },
 },

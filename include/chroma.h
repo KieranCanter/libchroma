@@ -1,6 +1,6 @@
 /*
  * libchroma - Color space conversion library
- * https://github.com/KieranCanter/libchroma
+ * https://github.com/kicanter/libchroma
  *
  * Conventions:
  *   - All channel values are float (f32). RGB spaces use [0,1] internally; use srgb8/hex helpers for 0-255 or packed.
